@@ -3,6 +3,7 @@ import { Space_Grotesk, Inter } from "next/font/google";
 import "./globals.css";
 import { Nav } from "@/components/nav";
 import { Toaster } from "@/components/ui/sonner";
+import ErrorBoundary from "@/components/ErrorBoundary";
 
 const spaceGrotesk = Space_Grotesk({
   variable: "--font-display",
@@ -33,7 +34,7 @@ export default function RootLayout({
       >
         <Nav />
         <main className="container mx-auto px-4 py-8">
-          {children}
+          <ErrorBoundary>{children}</ErrorBoundary>
         </main>
         <Toaster />
       </body>

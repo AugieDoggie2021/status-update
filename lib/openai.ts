@@ -1,9 +1,9 @@
 import OpenAI from 'openai';
 import type { ParsedUpdate } from './types';
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
+export function getOpenAI() {
+  return new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+}
 
 /**
  * Parse natural language notes into structured JSON using OpenAI
@@ -31,7 +31,8 @@ Rules:
 Return ONLY valid JSON matching the schema.`;
 
   try {
-    const completion = await openai.chat.completions.create({
+    const client = getOpenAI();
+    const completion = await client.chat.completions.create({
       model: 'gpt-4o',
       messages: [
         { role: 'system', content: systemPrompt },

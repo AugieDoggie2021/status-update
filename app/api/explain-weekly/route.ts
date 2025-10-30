@@ -1,12 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
+export const runtime = 'nodejs';
 import { explainWeeklyRequestSchema } from '@/lib/zod-schemas';
 import { getAdminClient } from '@/lib/supabase';
 import { requireRole } from '@/lib/auth';
-import OpenAI from 'openai';
-
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
+import { getOpenAI } from '@/lib/openai';
 
 export async function POST(request: NextRequest) {
   const routePath = '/api/explain-weekly';
@@ -124,6 +121,7 @@ Generate a professional, concise summary suitable for executive review. Focus on
     }
 
     try {
+      const openai = getOpenAI();
       const completion = await openai.chat.completions.create({
         model: 'gpt-4o',
         messages: [{ role: 'user', content: prompt }],

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+export const runtime = 'nodejs';
 import { applyUpdateRequestSchema } from '@/lib/zod-schemas';
 import { parseNotesToJSON, naiveParseNotes } from '@/lib/openai';
 import { getAdminClient } from '@/lib/supabase';

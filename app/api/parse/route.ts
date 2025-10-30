@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+export const runtime = 'nodejs';
 import { parseNotesToJSON, naiveParseNotes } from '@/lib/openai';
 import { parseRequestSchema } from '@/lib/zod-schemas';
 
