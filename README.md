@@ -36,7 +36,7 @@ npm install
 4. **Important**: After running the seed SQL, copy the returned `id` from the `INSERT INTO programs` statement
 5. Note your Supabase URL, anon key, and service role key from Settings > API
 
-### 2a. Enable Supabase Auth
+### 2a. Enable Supabase Auth & Set Up Memberships
 
 1. Go to **Authentication > Providers** in your Supabase dashboard
 2. Enable **Email** provider (for magic links)
@@ -44,11 +44,13 @@ npm install
    - Configure OAuth credentials in Google Cloud Console
    - Add client ID and secret to Supabase Google provider settings
 4. Run the RLS migration: `scripts/migrations/002_add_rls_and_memberships.sql`
-5. Create an initial membership for yourself:
+5. Sign up/login via `/auth/sign-in` (magic link or Google)
+6. Create your membership in Supabase SQL Editor:
    ```sql
    -- Replace with your program ID and user UUID from auth.users
    INSERT INTO program_memberships (program_id, user_id, role)
-   VALUES ('YOUR-PROGRAM-ID', 'YOUR-USER-UUID', 'OWNER');
+   VALUES ('YOUR-PROGRAM-ID', 'YOUR-USER-UUID', 'OWNER')
+   ON CONFLICT (program_id, user_id) DO UPDATE SET role = 'OWNER';
    ```
 
 ### 3. Set Up Environment Variables
@@ -72,8 +74,9 @@ NEXT_PUBLIC_BASE_URL="http://localhost:3000"
 ```
 
 **Important:**
-- **Standard Variable Name**: The codebase uses `NEXT_PUBLIC_PROGRAM_ID` consistently (needed for client-side access)
+- **All Environment Variables**: Required for both local development and Vercel deployment
 - **Security Note**: `SUPABASE_SERVICE_ROLE_KEY` is server-side only and never exposed to the client. It's only used in API route handlers (`app/api/**`).
+- **Base URL**: In production, set `NEXT_PUBLIC_BASE_URL` to your Vercel deployment URL (e.g., `https://status-update-kfhy.vercel.app`)
 
 Replace:
 - `YOURPROJECT.supabase.co` with your Supabase project URL
@@ -89,6 +92,8 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000) in your browser.
 
+**Note:** The app is already configured for Vercel deployment. Changes to the `main` branch automatically trigger deployments.
+
 ## Project Structure
 
 ```
@@ -100,13 +105,22 @@ advisory-status-tracker/
 │   │   ├── explain-weekly/# Generate weekly summary
 │   │   ├── workstreams/   # CRUD for workstreams
 │   │   ├── risks/          # CRUD for risks
-│   │   └── actions/       # CRUD for actions
+│   │   ├── actions/       # CRUD for actions
+│   │   └── diag/          # Diagnostics endpoints
+│   ├── auth/              # Authentication pages
+│   │   ├── sign-in/       # Sign-in page (Magic Link + Google)
+│   │   └── callback/      # OAuth callback handler
 │   ├── dashboard/         # Main dashboard page
 │   ├── risks/             # Risks table page
 │   ├── actions/          # Actions table page
-│   └── report/           # Weekly report page
+│   ├── report/           # Weekly report page
+│   ├── admin/            # Admin pages (Owner only)
+│   └── healthz/          # Health check endpoint
 ├── components/
 │   ├── ui/                # shadcn/ui components
+│   ├── nav.tsx            # Navigation with sign-out
+│   ├── SignOutButton.tsx  # Sign-out button component
+│   ├── RequireAuth.tsx    # Auth guard component
 │   ├── kpis.tsx           # KPI dashboard component
 │   ├── workstream-card.tsx
 │   ├── details-pane.tsx
@@ -118,10 +132,16 @@ advisory-status-tracker/
 │   ├── zod-schemas.ts     # Zod validation schemas
 │   ├── status.ts          # Status calculation utilities
 │   ├── date.ts            # Date formatting utilities
-│   ├── supabase.ts        # Supabase client helpers
+│   ├── supabase.ts        # Supabase server client (service role)
+│   ├── supabase-client.ts # Supabase client component helper
+│   ├── auth.ts            # Auth helpers (server-side)
 │   └── openai.ts          # OpenAI integration
-└── scripts/
-    └── seed.sql           # Database schema and seed data
+├── scripts/
+│   ├── seed.sql           # Database schema and seed data
+│   └── migrations/        # Database migrations
+│       ├── 001_add_reports_table.sql
+│       └── 002_add_rls_and_memberships.sql
+└── middleware.ts          # Route protection middleware
 ```
 
 ## Usage
@@ -216,16 +236,19 @@ npm run build
 
 ## Deployment to Vercel
 
-1. Push your code to GitHub
-2. Import the project in Vercel
+1. Push your code to GitHub (already configured)
+2. Vercel automatically deploys from the `main` branch
 3. Add environment variables in Vercel dashboard:
    - `NEXT_PUBLIC_SUPABASE_URL`
+   - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
    - `SUPABASE_SERVICE_ROLE_KEY`
    - `OPENAI_API_KEY`
    - `NEXT_PUBLIC_PROGRAM_ID`
-   - `NEXT_PUBLIC_BASE_URL` (your Vercel URL)
-
-4. Deploy!
+   - `NEXT_PUBLIC_BASE_URL` (your Vercel URL, e.g., `https://status-update-kfhy.vercel.app`)
+4. Verify deployment:
+   - Visit `/healthz` - should return `OK`
+   - Visit `/auth/sign-in` - should show sign-in UI
+   - Visit `/api/diag/env` - check all environment variables are set
 
 ## Development
 
@@ -283,17 +306,25 @@ RLS is enabled on all tables via `scripts/migrations/002_add_rls_and_memberships
 
 ### Authentication
 
-The app uses Supabase Auth with:
-- **Email magic links** (OTP)
-- **Google OAuth** (optional)
+The app uses Supabase Auth (fully implemented) with:
+- **Email magic links** (OTP) via `/auth/sign-in`
+- **Google OAuth** (optional) - configure in Supabase dashboard
 - Session cookies managed by `@supabase/auth-helpers-nextjs`
+- Sign-in page at `/auth/sign-in`
+- OAuth callback at `/auth/callback` (redirects to `/dashboard`)
+- Sign-out button in navigation header
 
 ### Role Assignment
 
 - Membership is managed via `/admin/members` (Owner only)
-- Users are invited by email
-- On first login, users receive the role assigned to their email
-- Direct access: Create membership in Supabase SQL Editor if needed
+- Users sign in via `/auth/sign-in` (magic link or Google)
+- After first sign-in, create membership in Supabase SQL Editor:
+  ```sql
+  INSERT INTO program_memberships (program_id, user_id, role)
+  VALUES ('YOUR-PROGRAM-ID', 'YOUR-USER-UUID', 'OWNER')
+  ON CONFLICT (program_id, user_id) DO UPDATE SET role = 'OWNER';
+  ```
+- Or invite users via `/admin/members` (Owner only)
 
 ### API Route Guards
 
@@ -304,7 +335,7 @@ All API routes enforce role-based access:
 
 ### Middleware Protection
 
-Protected routes (`/dashboard`, `/risks`, `/actions`, `/report`, `/admin/*`) redirect unauthenticated users to `/auth/sign-in`.
+Protected routes (`/dashboard`, `/risks`, `/actions`, `/report`, `/admin/*`) are matched by middleware. Authentication is enforced via the `RequireAuth` component on protected pages. Public routes (`/auth/*`, `/healthz`, `/api/diag/*`) are never intercepted by middleware.
 
 ### Service Role Key Security
 
