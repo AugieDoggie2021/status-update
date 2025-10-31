@@ -4,9 +4,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import useSWR from 'swr';
-import { createClient } from '@/lib/supabase-client';
-import { LogOut } from 'lucide-react';
-import { Button } from './ui/button';
+import { SignOutButton } from './SignOutButton';
 
 const PROGRAM_ID = process.env.NEXT_PUBLIC_PROGRAM_ID || '';
 
@@ -29,11 +27,6 @@ export function Nav() {
   );
 
   const isOwner = roleData?.role === 'OWNER';
-
-  const handleSignOut = async () => {
-    await supabase.auth.signOut();
-    window.location.href = '/auth/sign-in';
-  };
 
   return (
     <nav className="border-b backdrop-blur-xl bg-white/50 dark:bg-slate-900/40 border-b-white/20">
@@ -70,14 +63,7 @@ export function Nav() {
                 Members
               </Link>
             )}
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={handleSignOut}
-              className="ml-2"
-            >
-              <LogOut className="h-4 w-4" />
-            </Button>
+            <SignOutButton />
           </div>
         </div>
       </div>
