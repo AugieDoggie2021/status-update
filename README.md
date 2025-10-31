@@ -234,6 +234,20 @@ Run type checking:
 npm run build
 ```
 
+## Syncing to GitHub
+
+The repository includes scripts to sync and verify pushes:
+
+```powershell
+# Quick sync with verification
+.\sync-and-verify.ps1 -CommitMessage "Your commit message"
+
+# Test authentication
+.\test-auth.ps1
+```
+
+**First time setup:** See `SETUP_AUTH.md` for authentication setup instructions.
+
 ## Deployment to Vercel
 
 1. Push your code to GitHub (already configured)
