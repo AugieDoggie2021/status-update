@@ -328,6 +328,14 @@ The app uses Supabase Auth (fully implemented) with:
 - OAuth callback at `/auth/callback` (redirects to `/dashboard`)
 - Sign-out button in navigation header
 
+**Important Supabase Configuration:**
+1. Go to your Supabase project → **Authentication** → **URL Configuration**
+2. Set **Site URL** to your production URL: `https://status-update-kfhy.vercel.app`
+3. Add to **Redirect URLs**: 
+   - `https://status-update-kfhy.vercel.app/auth/callback`
+   - `http://localhost:3000/auth/callback` (for local development)
+4. This ensures magic link emails use the correct production URL
+
 ### Role Assignment
 
 - Membership is managed via `/admin/members` (Owner only)

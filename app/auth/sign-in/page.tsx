@@ -10,9 +10,17 @@ export default function SignInPage() {
   const [err, setErr] = useState<string|null>(null);
   const [loading, setLoading] = useState(false);
 
-  const redirectTo = typeof window !== "undefined"
-    ? `${window.location.origin}/auth/callback`
-    : "/auth/callback";
+  // Construct redirect URL: prefer NEXT_PUBLIC_BASE_URL (set in Vercel), otherwise use current origin
+  // Note: Supabase dashboard must also have this URL in Site URL and Redirect URLs settings
+  const getRedirectUrl = () => {
+    if (typeof window === "undefined") {
+      return `${process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000"}/auth/callback`;
+    }
+    // In client: use env var if available, otherwise current origin
+    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || window.location.origin;
+    return `${baseUrl}/auth/callback`;
+  };
+  const redirectTo = getRedirectUrl();
 
   async function sendMagic(e: React.FormEvent) {
     e.preventDefault();
