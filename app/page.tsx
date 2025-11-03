@@ -1,11 +1,12 @@
 import { redirect } from 'next/navigation';
-import { getServerSession } from '@/lib/auth';
+import { createClient } from '@/lib/supabase/server';
 
 export default async function Home() {
   // Check if user is already signed in
-  const session = await getServerSession();
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
   
-  if (session) {
+  if (user) {
     // User is signed in - redirect to dashboard
     redirect('/dashboard');
   }

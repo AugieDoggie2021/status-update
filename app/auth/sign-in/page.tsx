@@ -1,11 +1,11 @@
 "use client";
 
 import { useSearchParams } from "next/navigation";
-import { Suspense, useEffect, useState } from "react";
-import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
+import { Suspense, useEffect, useMemo, useState } from "react";
+import { createBrowserClientSupabase } from "@/lib/supabase/browser";
 
 function SignInForm() {
-  const supabase = createClientComponentClient();
+  const supabase = useMemo(() => createBrowserClientSupabase(), []);
   const searchParams = useSearchParams();
   const [email, setEmail] = useState("");
   const [sent, setSent] = useState(false);
@@ -20,38 +20,35 @@ function SignInForm() {
     }
   }, [searchParams]);
 
-  // Construct redirect URL: prefer NEXT_PUBLIC_BASE_URL (set in Vercel), otherwise use current origin
-  // Note: Supabase dashboard must also have this URL in Site URL and Redirect URLs settings
-  const getRedirectUrl = () => {
-    if (typeof window === "undefined") {
-      return `${process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000"}/auth/callback`;
-    }
-    // In client: use env var if available, otherwise current origin
-    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || window.location.origin;
-    return `${baseUrl}/auth/callback`;
-  };
-  const redirectTo = getRedirectUrl();
+  const origin = typeof window !== "undefined" ? window.location.origin : "";
 
   async function sendMagic(e: React.FormEvent) {
     e.preventDefault();
     setErr(null); setLoading(true);
     const { error } = await supabase.auth.signInWithOtp({
       email,
-      options: { emailRedirectTo: redirectTo }
+      options: { emailRedirectTo: `${origin}/auth/callback?redirect_to=/dashboard` }
     });
     setLoading(false);
-    if (error) setErr(error.message);
-    else setSent(true);
+    if (error) {
+      setErr(error.message);
+      console.error("Magic link error:", error.message);
+    } else {
+      setSent(true);
+    }
   }
 
   async function signWithGoogle() {
     setErr(null); setLoading(true);
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
-      options: { redirectTo: redirectTo }
+      options: { redirectTo: `${origin}/auth/callback?redirect_to=/dashboard` }
     });
     setLoading(false);
-    if (error) setErr(error.message);
+    if (error) {
+      setErr(error.message);
+      console.error("Google OAuth error:", error.message);
+    }
   }
 
   return (

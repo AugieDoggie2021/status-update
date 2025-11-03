@@ -1,11 +1,19 @@
-import RequireAuth from '@/components/RequireAuth';
+import { redirect } from "next/navigation";
+import { createClient } from "@/lib/supabase/server";
 import DashboardClient from './DashboardClient';
 
 export default async function DashboardPage() {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+
+  if (!user) {
+    redirect("/auth/sign-in");
+  }
+
   return (
-    <RequireAuth>
+    <main className="p-6">
       <DashboardClient />
-    </RequireAuth>
+    </main>
   );
 }
 
