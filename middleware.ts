@@ -1,3 +1,4 @@
+// TODO: Next.js message: "middleware" file convention is deprecated; migrate to "proxy" when upgrading.
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 

@@ -1,4 +1,4 @@
-import { createServerClient } from '@supabase/auth-helpers-nextjs';
+import { createClient } from '@supabase/supabase-js';
 import { cookies } from 'next/headers';
 import { getAdminClient } from './supabase';
 
@@ -7,18 +7,22 @@ import { getAdminClient } from './supabase';
  */
 export async function getServerSession() {
   const cookieStore = await cookies();
-  const supabase = createServerClient(
+  const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
-      cookies: {
-        getAll() {
-          return cookieStore.getAll();
-        },
-        setAll(cookiesToSet) {
-          cookiesToSet.forEach(({ name, value, options }) => {
-            cookieStore.set(name, value, options);
-          });
+      auth: {
+        storage: {
+          getItem: (key: string) => {
+            const cookie = cookieStore.get(key);
+            return cookie?.value ?? null;
+          },
+          setItem: (key: string, value: string) => {
+            cookieStore.set(key, value, { path: '/', httpOnly: true, secure: true, sameSite: 'lax' });
+          },
+          removeItem: (key: string) => {
+            cookieStore.delete(key);
+          },
         },
       },
     }

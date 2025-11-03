@@ -19,7 +19,6 @@ const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
 export function Nav() {
   const pathname = usePathname();
-  const supabase = createClient();
   
   const { data: roleData } = useSWR<{ ok: boolean; role: 'OWNER' | 'CONTRIBUTOR' | 'VIEWER' | null }>(
     PROGRAM_ID ? `/api/role?programId=${PROGRAM_ID}` : null,

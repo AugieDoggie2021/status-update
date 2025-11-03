@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAdminClient } from '@/lib/supabase';
 import { requireRole } from '@/lib/auth';
+import { firstZodMessage } from '@/lib/error-utils';
 import { z } from 'zod';
 
 const updateSchema = z.object({
@@ -61,14 +62,14 @@ export async function PATCH(
       }
       if (error instanceof z.ZodError) {
         return NextResponse.json(
-          { ok: false, error: `Invalid request: ${error.errors[0]?.message}` },
+          { ok: false, error: `Invalid request: ${firstZodMessage(error)}` },
           { status: 400 }
         );
       }
     }
     console.error('[PATCH /api/members/:id] Error:', error);
     return NextResponse.json(
-      { ok: false, error: 'Failed to update membership' },
+      { ok: false, error: String((error as any)?.message ?? "Unexpected error") },
       { status: 500 }
     );
   }

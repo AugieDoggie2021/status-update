@@ -4,7 +4,7 @@ import "./globals.css";
 import { Nav } from "@/components/nav";
 import { Toaster } from "@/components/ui/sonner";
 import ErrorBoundary from "@/components/ErrorBoundary";
-import { Analytics } from "@vercel/analytics/react";
+// import { Analytics } from "@vercel/analytics/react"; // TODO: Uncomment after npm install
 
 const spaceGrotesk = Space_Grotesk({
   variable: "--font-display",
@@ -38,7 +38,7 @@ export default function RootLayout({
           <ErrorBoundary>{children}</ErrorBoundary>
         </main>
         <Toaster />
-        <Analytics />
+        {/* <Analytics /> */}
       </body>
     </html>
   );
