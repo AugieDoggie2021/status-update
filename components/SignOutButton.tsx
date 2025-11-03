@@ -1,13 +1,21 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 
 export function SignOutButton() {
+  const router = useRouter();
   const supabase = createClientComponentClient();
 
   async function signOut() {
-    await supabase.auth.signOut();
-    if (typeof window !== "undefined") window.location.href = "/auth/sign-in";
+    const { error } = await supabase.auth.signOut();
+    if (error) {
+      console.error("Sign out error:", error.message);
+      return;
+    }
+    // Clear session and refresh router to update server components
+    router.push("/auth/sign-in");
+    router.refresh();
   }
 
   return (

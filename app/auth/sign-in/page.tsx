@@ -1,14 +1,24 @@
 "use client";
 
-import { useState } from "react";
+import { useSearchParams } from "next/navigation";
+import { Suspense, useEffect, useState } from "react";
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 
-export default function SignInPage() {
+function SignInForm() {
   const supabase = createClientComponentClient();
+  const searchParams = useSearchParams();
   const [email, setEmail] = useState("");
   const [sent, setSent] = useState(false);
   const [err, setErr] = useState<string|null>(null);
   const [loading, setLoading] = useState(false);
+
+  // Check for error from callback
+  useEffect(() => {
+    const error = searchParams.get("error");
+    if (error) {
+      setErr(decodeURIComponent(error));
+    }
+  }, [searchParams]);
 
   // Construct redirect URL: prefer NEXT_PUBLIC_BASE_URL (set in Vercel), otherwise use current origin
   // Note: Supabase dashboard must also have this URL in Site URL and Redirect URLs settings
@@ -82,5 +92,20 @@ export default function SignInPage() {
         {err && <p className="mt-4 text-rose-700">Error: {err}</p>}
       </div>
     </main>
+  );
+}
+
+export default function SignInPage() {
+  return (
+    <Suspense fallback={
+      <main className="min-h-screen grid place-items-center bg-gradient-to-br from-emerald-200/40 via-sky-100 to-white">
+        <div className="w-full max-w-md rounded-2xl p-8 backdrop-blur-xl bg-white/60 border border-white/30 shadow-xl">
+          <h1 className="text-3xl font-semibold tracking-tight">Sign in</h1>
+          <p className="text-slate-600 mt-1">Loading...</p>
+        </div>
+      </main>
+    }>
+      <SignInForm />
+    </Suspense>
   );
 }
