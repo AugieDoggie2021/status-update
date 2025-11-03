@@ -66,6 +66,8 @@ export async function GET(request: Request) {
     }
   );
 
+  // Call exchangeCodeForSession - Supabase SSR should handle PKCE automatically
+  // The createServerClient should read the code verifier from cookies automatically
   const { data, error } = await supabase.auth.exchangeCodeForSession(code);
 
   if (error) {
