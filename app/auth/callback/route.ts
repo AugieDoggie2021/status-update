@@ -36,10 +36,18 @@ export async function GET(request: Request) {
   const allCookies = cookieStore.getAll();
   console.log('[auth/callback] Cookies received:', allCookies.map(c => c.name).join(', '));
   
-  // Debug: Check for PKCE verifier cookie
-  const verifierCookie = allCookies.find(c => c.name.includes('code_verifier') || c.name.includes('verifier'));
+  // Debug: Check for PKCE verifier cookie - Supabase SSR uses this format
+  const verifierCookie = allCookies.find(c => 
+    c.name.includes('code_verifier') || 
+    c.name.includes('verifier') ||
+    c.name.startsWith('sb-') && c.name.includes('code-verifier')
+  );
+  
   if (!verifierCookie) {
     console.warn('[auth/callback] No PKCE verifier cookie found. Available cookies:', allCookies.map(c => c.name));
+    console.warn('[auth/callback] Cookie names:', JSON.stringify(allCookies.map(c => ({ name: c.name, hasValue: !!c.value })), null, 2));
+  } else {
+    console.log('[auth/callback] Found PKCE verifier cookie:', verifierCookie.name);
   }
 
   const { error } = await supabase.auth.exchangeCodeForSession(code);
