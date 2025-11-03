@@ -17,8 +17,7 @@ export async function GET(request: Request) {
   console.log('[auth/callback] Raw cookie header:', cookieHeader.substring(0, 200));
 
   const cookieStore = await cookies();
-  const response = NextResponse.redirect(`${origin}${redirectTo}`);
-
+  
   // Force read cookies immediately to ensure they're available
   const allCookies = cookieStore.getAll();
   console.log('[auth/callback] Cookies from cookieStore:', allCookies.map(c => c.name).join(', '));
@@ -33,15 +32,12 @@ export async function GET(request: Request) {
   if (!verifierCookie) {
     console.warn('[auth/callback] No PKCE verifier cookie found in cookieStore');
     console.warn('[auth/callback] All cookies:', JSON.stringify(allCookies.map(c => ({ name: c.name, valueLength: c.value?.length || 0 })), null, 2));
-    
-    // Try to find it in raw cookie header
-    const verifierInHeader = cookieHeader.match(/sb-[^=]+code-verifier[^=]*=([^;]+)/);
-    if (verifierInHeader) {
-      console.log('[auth/callback] Found verifier in raw cookie header (but not in cookieStore)');
-    }
   } else {
     console.log('[auth/callback] Found PKCE verifier cookie:', verifierCookie.name, 'value length:', verifierCookie.value?.length || 0);
   }
+
+  // Create response AFTER reading cookies but BEFORE creating supabase client
+  const response = NextResponse.redirect(`${origin}${redirectTo}`);
 
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -49,16 +45,21 @@ export async function GET(request: Request) {
     {
       cookies: {
         getAll() {
-          // Return all cookies from the store
+          // Return all cookies from the store - ensure we're returning the actual cookie objects
           const cookies = cookieStore.getAll();
-          console.log('[auth/callback] createServerClient.getAll() called, returning', cookies.length, 'cookies');
+          console.log('[auth/callback] createServerClient.getAll() called, returning', cookies.length, 'cookies:', cookies.map(c => c.name).join(', '));
           return cookies;
         },
         setAll(cookiesToSet) {
           console.log('[auth/callback] createServerClient.setAll() called with', cookiesToSet.length, 'cookies');
           cookiesToSet.forEach(({ name, value, options }) => {
-            cookieStore.set(name, value, options);
-            response.cookies.set(name, value, options);
+            try {
+              cookieStore.set(name, value, options);
+              response.cookies.set(name, value, options);
+            } catch (err) {
+              // Ignore errors in route handlers
+              console.warn('[auth/callback] Error setting cookie:', name, err);
+            }
           });
         },
       },
