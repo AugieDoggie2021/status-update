@@ -20,14 +20,24 @@ function SignInForm() {
     }
   }, [searchParams]);
 
-  const origin = typeof window !== "undefined" ? window.location.origin : "";
+  // Use NEXT_PUBLIC_BASE_URL if available (for Vercel), otherwise use current origin
+  const getRedirectUrl = () => {
+    if (typeof window === "undefined") {
+      return `${process.env.NEXT_PUBLIC_BASE_URL || process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000"}/auth/callback`;
+    }
+    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || process.env.NEXT_PUBLIC_SITE_URL || window.location.origin;
+    return `${baseUrl}/auth/callback`;
+  };
+  const redirectUrl = getRedirectUrl();
 
   async function sendMagic(e: React.FormEvent) {
     e.preventDefault();
     setErr(null); setLoading(true);
     const { error } = await supabase.auth.signInWithOtp({
       email,
-      options: { emailRedirectTo: `${origin}/auth/callback?redirect_to=/dashboard` }
+      options: { 
+        emailRedirectTo: `${redirectUrl}?redirect_to=/dashboard`
+      }
     });
     setLoading(false);
     if (error) {
@@ -42,7 +52,13 @@ function SignInForm() {
     setErr(null); setLoading(true);
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
-      options: { redirectTo: `${origin}/auth/callback?redirect_to=/dashboard` }
+      options: { 
+        redirectTo: `${redirectUrl}?redirect_to=/dashboard`,
+        queryParams: {
+          access_type: 'offline',
+          prompt: 'consent',
+        }
+      }
     });
     setLoading(false);
     if (error) {
