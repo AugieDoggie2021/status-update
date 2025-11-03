@@ -15,8 +15,19 @@ function SignInForm() {
   // Check for error from callback
   useEffect(() => {
     const error = searchParams.get("error");
+    const details = searchParams.get("details");
     if (error) {
-      setErr(decodeURIComponent(error));
+      let errorMsg = decodeURIComponent(error);
+      if (details) {
+        try {
+          const errorDetails = JSON.parse(decodeURIComponent(details));
+          errorMsg += `\n\nDebug info:\n- Cookies found: ${errorDetails.cookieCount}\n- Cookie names: ${errorDetails.cookieNames?.join(', ') || 'none'}\n- Has verifier: ${errorDetails.hasVerifier ? 'yes' : 'no'}\n- Error code: ${errorDetails.code || 'unknown'}`;
+        } catch (e) {
+          // Ignore parse errors
+        }
+      }
+      setErr(errorMsg);
+      console.error('[SignIn] Auth error:', error, details ? JSON.parse(decodeURIComponent(details)) : null);
     }
   }, [searchParams]);
 

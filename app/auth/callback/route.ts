@@ -50,14 +50,40 @@ export async function GET(request: Request) {
     console.log('[auth/callback] Found PKCE verifier cookie:', verifierCookie.name);
   }
 
-  const { error } = await supabase.auth.exchangeCodeForSession(code);
+  const { data, error } = await supabase.auth.exchangeCodeForSession(code);
 
   if (error) {
-    console.error('[auth/callback] Exchange error:', error.message);
+    console.error('[auth/callback] Exchange error:', {
+      message: error.message,
+      status: error.status,
+      code: error.code,
+      name: error.name,
+      availableCookies: allCookies.map(c => c.name),
+      hasVerifier: !!verifierCookie
+    });
+    
+    // Return detailed error for debugging
+    const errorDetails = {
+      message: error.message,
+      status: error.status,
+      code: error.code,
+      cookieCount: allCookies.length,
+      cookieNames: allCookies.map(c => c.name),
+      hasVerifier: !!verifierCookie
+    };
+    
     return NextResponse.redirect(
-      `${origin}/auth/sign-in?error=${encodeURIComponent(error.message)}`
+      `${origin}/auth/sign-in?error=${encodeURIComponent(error.message)}&details=${encodeURIComponent(JSON.stringify(errorDetails))}`
     );
   }
 
+  if (!data?.session) {
+    console.error('[auth/callback] No session returned from exchange');
+    return NextResponse.redirect(
+      `${origin}/auth/sign-in?error=${encodeURIComponent('No session returned from authentication')}`
+    );
+  }
+
+  console.log('[auth/callback] Successfully exchanged code for session');
   return response;
 }
