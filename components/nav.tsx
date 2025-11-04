@@ -10,6 +10,8 @@ const PROGRAM_ID = process.env.NEXT_PUBLIC_PROGRAM_ID || '';
 
 const navItems = [
   { href: '/dashboard', label: 'Dashboard' },
+  { href: '/status-update', label: 'Status Update', requiresWrite: true },
+  { href: '/workstreams', label: 'Workstreams' },
   { href: '/risks', label: 'Risks' },
   { href: '/actions', label: 'Actions' },
   { href: '/report', label: 'Report' },
@@ -25,7 +27,9 @@ export function Nav() {
     fetcher
   );
 
-  const isOwner = roleData?.role === 'OWNER';
+  const role = roleData?.role || null;
+  const isOwner = role === 'OWNER';
+  const canWrite = role === 'OWNER' || role === 'CONTRIBUTOR';
 
   return (
     <nav className="border-b backdrop-blur-xl bg-white/50 dark:bg-slate-900/40 border-b-white/20">
@@ -35,20 +39,26 @@ export function Nav() {
             Advisory Status Tracker
           </h1>
           <div className="flex items-center space-x-2">
-            {navItems.map((item) => (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={cn(
-                  'px-3 py-2 rounded-md text-sm font-medium transition-all',
-                  pathname === item.href
-                    ? 'bg-gradient-to-r from-emerald-500/20 to-sky-500/20 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30'
-                    : 'text-muted-foreground hover:bg-accent/50 hover:text-accent-foreground'
-                )}
-              >
-                {item.label}
-              </Link>
-            ))}
+            {navItems.map((item) => {
+              // Hide items that require write access if user is viewer
+              if (item.requiresWrite && !canWrite) {
+                return null;
+              }
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className={cn(
+                    'px-3 py-2 rounded-md text-sm font-medium transition-all',
+                    pathname === item.href
+                      ? 'bg-gradient-to-r from-emerald-500/20 to-sky-500/20 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30'
+                      : 'text-muted-foreground hover:bg-accent/50 hover:text-accent-foreground'
+                  )}
+                >
+                  {item.label}
+                </Link>
+              );
+            })}
             {isOwner && (
               <Link
                 href="/admin/members"

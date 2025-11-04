@@ -6,6 +6,7 @@ import { KPIs } from '@/components/kpis';
 import { WorkstreamCard } from '@/components/workstream-card';
 import { DetailsPane } from '@/components/details-pane';
 import { UpdateComposer } from '@/components/update-composer';
+import { ViewerBanner } from '@/components/viewer-banner';
 import { Skeleton } from '@/components/ui/skeleton';
 import type { Workstream, Risk, ActionItem } from '@/lib/types';
 import { apiJson } from '@/lib/fetcher';
@@ -96,6 +97,7 @@ export default function DashboardClient() {
         <h2 className="text-4xl font-display font-bold tracking-tight mb-2">Dashboard</h2>
         <p className="text-muted-foreground">Program overview and status updates</p>
       </div>
+      {!canWrite && <ViewerBanner className="mb-4" />}
       <div>
         {isLoadingWorkstreams || isLoadingRisks || isLoadingOverall ? (
           <div className="grid gap-4 md:grid-cols-4">

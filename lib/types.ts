@@ -19,6 +19,10 @@ export type Workstream = {
   status: Status;
   percent_complete: number;
   summary: string;
+  description?: string | null;
+  start_date?: string | null;
+  end_date?: string | null;
+  tags?: string[];
   next_milestone: string | null;
   next_milestone_due: string | null;
   updated_at: string;
@@ -45,6 +49,28 @@ export type ActionItem = {
   due_date: string | null;
   status: ActionStatus;
   notes: string | null;
+};
+
+export type Milestone = {
+  id: string;
+  workstream_id: string;
+  title: string;
+  due_date: string;
+  completed_at: string | null;
+  created_at: string;
+};
+
+export type StatusUpdate = {
+  id: string;
+  workstream_id: string;
+  week_start: string; // ISO date (Monday)
+  rag: Status;
+  progress_percent: number;
+  accomplishments: string;
+  blockers: string;
+  plan_next: string;
+  created_by: string | null;
+  created_at: string;
 };
 
 export type ParsedUpdate = {

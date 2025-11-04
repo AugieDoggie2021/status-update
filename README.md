@@ -71,6 +71,14 @@ OPENAI_API_KEY="sk-..."
 # --- App ---
 NEXT_PUBLIC_PROGRAM_ID="00000000-0000-0000-0000-000000000000"  # Replace after seeding
 NEXT_PUBLIC_BASE_URL="http://localhost:3000"
+
+# --- Admin Bootstrap (Optional) ---
+# Comma-separated list of emails that should automatically get Admin (OWNER) role
+ADMIN_EMAILS="admin@example.com,waldopotter@gmail.com"
+
+# --- Admin API Secret (Optional) ---
+# For protecting admin endpoints (if you add custom admin API routes)
+# ADMIN_API_SECRET="your-secret-key-here"
 ```
 
 **Important:**
@@ -133,14 +141,21 @@ advisory-status-tracker/
 │   ├── status.ts          # Status calculation utilities
 │   ├── date.ts            # Date formatting utilities
 │   ├── supabase.ts        # Supabase server client (service role)
-│   ├── supabase-client.ts # Supabase client component helper
+│   ├── supabase/          # Supabase client helpers
+│   │   ├── browser.ts     # Browser client
+│   │   └── server.ts     # Server client
 │   ├── auth.ts            # Auth helpers (server-side)
+│   ├── authz.ts           # RBAC helpers (Role-based access control)
 │   └── openai.ts          # OpenAI integration
 ├── scripts/
 │   ├── seed.sql           # Database schema and seed data
+│   ├── grant-role.ts      # CLI script to grant user roles
 │   └── migrations/        # Database migrations
 │       ├── 001_add_reports_table.sql
-│       └── 002_add_rls_and_memberships.sql
+│       ├── 002_add_rls_and_memberships.sql
+│       ├── 003_add_status_updates_table.sql
+│       ├── 004_add_milestones_table.sql
+│       └── 005_update_workstreams_schema.sql
 └── middleware.ts          # Route protection middleware
 ```
 
@@ -338,15 +353,42 @@ The app uses Supabase Auth (fully implemented) with:
 
 ### Role Assignment
 
+**Automatic Admin Bootstrap:**
+- The first user to sign in (fresh database) automatically gets Admin (OWNER) role
+- Users with emails listed in `ADMIN_EMAILS` environment variable automatically get Admin (OWNER) role on sign-in
+- Email matching is case-insensitive (handles Google aliases)
+
+**Manual Role Assignment:**
 - Membership is managed via `/admin/members` (Owner only)
-- Users sign in via `/auth/sign-in` (magic link or Google)
-- After first sign-in, create membership in Supabase SQL Editor:
+- Use the `grant:role` script to grant roles from the command line:
+  ```bash
+  npm run grant:role -- --email "waldopotter@gmail.com" --program "default" --role Admin
+  ```
+- Or invite users via `/admin/members` (Owner only)
+- Or manually create membership in Supabase SQL Editor:
   ```sql
   INSERT INTO program_memberships (program_id, user_id, role)
   VALUES ('YOUR-PROGRAM-ID', 'YOUR-USER-UUID', 'OWNER')
   ON CONFLICT (program_id, user_id) DO UPDATE SET role = 'OWNER';
   ```
-- Or invite users via `/admin/members` (Owner only)
+
+**Grant Role Script:**
+The `grant:role` script allows you to grant roles from the command line:
+```bash
+# Grant Admin role to a user (uses default program from NEXT_PUBLIC_PROGRAM_ID)
+npm run grant:role -- --email "user@example.com" --program "default" --role Admin
+
+# Grant Editor role to a user
+npm run grant:role -- --email "user@example.com" --program "default" --role Editor
+
+# Grant Viewer role to a user
+npm run grant:role -- --email "user@example.com" --program "default" --role Viewer
+
+# Specify a program ID directly
+npm run grant:role -- --email "user@example.com" --program "YOUR-PROGRAM-ID" --role Admin
+```
+
+The script is idempotent - running it multiple times is safe (it uses upsert).
 
 ### API Route Guards
 
@@ -354,6 +396,44 @@ All API routes enforce role-based access:
 - GET routes require membership (any role)
 - POST/PATCH/DELETE routes require OWNER or CONTRIBUTOR
 - Membership admin routes require OWNER only
+
+### Debug Endpoints
+
+For debugging authentication and RBAC issues:
+
+**GET `/api/debug/session`**
+- Returns the current session (redacts sensitive tokens)
+- Useful for verifying authentication state
+- Example response:
+  ```json
+  {
+    "session": {
+      "user": {
+        "id": "user-uuid",
+        "email": "user@example.com"
+      }
+    }
+  }
+  ```
+
+**GET `/api/debug/whoami`**
+- Returns current user info with all program memberships
+- Useful for debugging RBAC and role assignment
+- Example response:
+  ```json
+  {
+    "userId": "user-uuid",
+    "email": "user@example.com",
+    "memberships": [
+      {
+        "programId": "program-uuid",
+        "role": "OWNER"
+      }
+    ]
+  }
+  ```
+
+**Note:** These endpoints are for debugging only. In production, consider restricting access or removing them.
 
 ### Middleware Protection
 

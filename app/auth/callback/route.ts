@@ -1,6 +1,8 @@
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
+import { ensureAdminMembership, normalizeEmail, getDefaultProgramId } from "@/lib/authz";
+import { getAdminClient } from "@/lib/supabase";
 
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url);
@@ -141,5 +143,45 @@ export async function GET(request: Request) {
   }
 
   console.log('[auth/callback] Successfully exchanged code for session');
+
+  // Admin bootstrap logic
+  try {
+    const user = data.session.user;
+    const userEmail = normalizeEmail(user.email);
+    const userId = user.id;
+
+    if (!userEmail || !userId) {
+      console.warn('[auth/callback] Missing user email or ID, skipping bootstrap');
+    } else {
+      // Check if this is the first user (fresh DB)
+      // If no memberships exist, this is the first user to get access
+      const supabaseAdmin = getAdminClient();
+      const { count } = await supabaseAdmin
+        .from('program_memberships')
+        .select('*', { count: 'exact', head: true });
+      const isFirstUser = (count || 0) === 0;
+
+      // Check if user is in ADMIN_EMAILS
+      const adminEmails = process.env.ADMIN_EMAILS
+        ? process.env.ADMIN_EMAILS.split(',').map(e => normalizeEmail(e.trim())).filter(Boolean)
+        : [];
+      const isAdminEmail = adminEmails.includes(userEmail);
+
+      if (isFirstUser || isAdminEmail) {
+        try {
+          const programId = getDefaultProgramId();
+          await ensureAdminMembership(userEmail, userId, programId);
+          console.log(`[auth/callback] Bootstrap: Granted OWNER role to ${userEmail} (first user: ${isFirstUser}, admin email: ${isAdminEmail})`);
+        } catch (bootstrapError) {
+          // Log but don't fail the auth flow
+          console.error('[auth/callback] Bootstrap error (non-fatal):', bootstrapError);
+        }
+      }
+    }
+  } catch (bootstrapError) {
+    // Log but don't fail the auth flow
+    console.error('[auth/callback] Bootstrap check error (non-fatal):', bootstrapError);
+  }
+
   return response;
 }

@@ -11,7 +11,8 @@
     "test:watch": "jest --watch",
     "smoke:local": "node scripts/smoke-tests.js",
     "seed:program": "node scripts/seedProgram.mjs",
-    "scan:runtime": "node scripts/repo-scan.mjs"
+    "scan:runtime": "node scripts/repo-scan.mjs",
+    "grant:role": "tsx scripts/grant-role.ts"
   },
   "dependencies": {
     "@radix-ui/react-alert-dialog": "^1.1.15",
@@ -63,6 +64,7 @@
     "tailwindcss": "^4",
     "ts-jest": "^29.4.5",
     "ts-node": "^10.9.2",
+    "tsx": "^4.19.2",
     "typescript": "^5"
   }
 }
