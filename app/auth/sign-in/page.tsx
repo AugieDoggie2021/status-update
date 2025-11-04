@@ -34,10 +34,11 @@ function SignInForm() {
   // Use NEXT_PUBLIC_BASE_URL if available (for Vercel), otherwise use current origin
   const getRedirectUrl = () => {
     if (typeof window === "undefined") {
-      return `${process.env.NEXT_PUBLIC_BASE_URL || process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000"}/auth/callback`;
+      const envUrl = (process.env.NEXT_PUBLIC_BASE_URL || process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000").trim();
+      return `${envUrl}/auth/callback`;
     }
-    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || process.env.NEXT_PUBLIC_SITE_URL || window.location.origin;
-    return `${baseUrl}/auth/callback`;
+    const envUrl = (process.env.NEXT_PUBLIC_BASE_URL || process.env.NEXT_PUBLIC_SITE_URL || window.location.origin).trim();
+    return `${envUrl}/auth/callback`;
   };
   const redirectUrl = getRedirectUrl();
 

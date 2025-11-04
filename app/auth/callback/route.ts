@@ -6,9 +6,12 @@ export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url);
   const code = searchParams.get("code");
   const redirectTo = searchParams.get("redirect_to") || "/dashboard";
+  
+  // Trim any whitespace from origin (fixes Supabase URL parsing error)
+  const cleanOrigin = origin.trim();
 
   if (!code) {
-    return NextResponse.redirect(`${origin}/auth/sign-in?error=missing_code`);
+    return NextResponse.redirect(`${cleanOrigin}/auth/sign-in?error=missing_code`);
   }
 
   // Get cookies from request headers directly
@@ -37,7 +40,8 @@ export async function GET(request: Request) {
   }
 
   // Create response AFTER reading cookies but BEFORE creating supabase client
-  const response = NextResponse.redirect(`${origin}${redirectTo}`);
+  // Use cleanOrigin to avoid URL parsing errors from leading spaces
+  const response = NextResponse.redirect(`${cleanOrigin}${redirectTo}`);
 
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -91,14 +95,14 @@ export async function GET(request: Request) {
     };
     
     return NextResponse.redirect(
-      `${origin}/auth/sign-in?error=${encodeURIComponent(error.message)}&details=${encodeURIComponent(JSON.stringify(errorDetails))}`
+      `${cleanOrigin}/auth/sign-in?error=${encodeURIComponent(error.message)}&details=${encodeURIComponent(JSON.stringify(errorDetails))}`
     );
   }
 
   if (!data?.session) {
     console.error('[auth/callback] No session returned from exchange');
     return NextResponse.redirect(
-      `${origin}/auth/sign-in?error=${encodeURIComponent('No session returned from authentication')}`
+      `${cleanOrigin}/auth/sign-in?error=${encodeURIComponent('No session returned from authentication')}`
     );
   }
 
