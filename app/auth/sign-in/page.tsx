@@ -32,15 +32,28 @@ function SignInForm() {
   }, [searchParams]);
 
   // Use NEXT_PUBLIC_BASE_URL if available (for Vercel), otherwise use current origin
+  // CRITICAL: Trim ALL whitespace to prevent Supabase URL parsing errors
   const getRedirectUrl = () => {
     if (typeof window === "undefined") {
-      const envUrl = (process.env.NEXT_PUBLIC_BASE_URL || process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000").trim();
-      return `${envUrl}/auth/callback`;
+      const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
+      const cleanUrl = String(baseUrl).trim().replace(/\s+/g, ''); // Remove ALL whitespace
+      return `${cleanUrl}/auth/callback`;
     }
-    const envUrl = (process.env.NEXT_PUBLIC_BASE_URL || process.env.NEXT_PUBLIC_SITE_URL || window.location.origin).trim();
-    return `${envUrl}/auth/callback`;
+    // Use window.location.origin in browser (most reliable)
+    const origin = window.location.origin.trim();
+    // Only use env vars if they're explicitly set and different from current origin
+    const envUrl = process.env.NEXT_PUBLIC_BASE_URL || process.env.NEXT_PUBLIC_SITE_URL;
+    const baseUrl = envUrl ? String(envUrl).trim().replace(/\s+/g, '') : origin;
+    return `${baseUrl}/auth/callback`;
   };
-  const redirectUrl = getRedirectUrl();
+  const redirectUrl = useMemo(() => getRedirectUrl(), []);
+  
+  // Log the redirect URL to verify it has no whitespace
+  useEffect(() => {
+    console.log('[SignIn] Redirect URL constructed:', JSON.stringify(redirectUrl));
+    console.log('[SignIn] Redirect URL length:', redirectUrl.length);
+    console.log('[SignIn] Redirect URL has whitespace:', /\s/.test(redirectUrl));
+  }, [redirectUrl]);
 
   async function sendMagic(e: React.FormEvent) {
     e.preventDefault();
@@ -84,10 +97,15 @@ function SignInForm() {
     }
     
     try {
+      // CRITICAL: Ensure redirectTo has NO whitespace - Supabase will fail if it does
+      const cleanRedirectTo = `${redirectUrl}?redirect_to=/dashboard`.trim();
+      console.log('[SignIn] Final redirectTo passed to Supabase:', JSON.stringify(cleanRedirectTo));
+      console.log('[SignIn] redirectTo has whitespace:', /\s/.test(cleanRedirectTo));
+      
       const { error, data } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: { 
-          redirectTo: `${redirectUrl}?redirect_to=/dashboard`,
+          redirectTo: cleanRedirectTo,
           queryParams: {
             access_type: 'offline',
             prompt: 'consent',
