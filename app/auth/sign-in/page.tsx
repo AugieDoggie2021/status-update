@@ -151,10 +151,13 @@ function SignInForm() {
         <form onSubmit={sendMagic} className="mt-6 space-y-3">
           <input
             type="email"
+            id="email"
+            name="email"
             required
             value={email}
             onChange={(e)=>setEmail(e.target.value)}
             placeholder="you@company.com"
+            autoComplete="email"
             className="w-full rounded-xl border px-4 py-3 bg-white/80 outline-none focus:ring-2 focus:ring-emerald-400"
           />
           <button
