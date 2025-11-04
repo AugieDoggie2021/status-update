@@ -62,6 +62,25 @@ function SignInForm() {
 
   async function signWithGoogle() {
     setErr(null); setLoading(true);
+    
+    // Log before OAuth redirect
+    if (typeof window !== 'undefined') {
+      console.log('[SignIn] Before Google OAuth:', {
+        redirectUrl,
+        currentOrigin: window.location.origin,
+        cookiesBefore: document.cookie.split(';').map(c => {
+          const [name] = c.trim().split('=');
+          return name;
+        }),
+        pkceCookiesBefore: document.cookie.split(';').filter(c => 
+          c.includes('code-verifier') || c.includes('verifier')
+        ).map(c => {
+          const [name, ...rest] = c.trim().split('=');
+          return { name, hasValue: rest.length > 0 && rest.join('=').length > 0 };
+        })
+      });
+    }
+    
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: { 
@@ -72,10 +91,14 @@ function SignInForm() {
         }
       }
     });
+    
     setLoading(false);
     if (error) {
       setErr(error.message);
       console.error("Google OAuth error:", error.message);
+    } else {
+      // Log after OAuth call (redirect will happen)
+      console.log('[SignIn] OAuth redirect initiated, waiting for redirect...');
     }
   }
 

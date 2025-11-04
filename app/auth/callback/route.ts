@@ -17,26 +17,60 @@ export async function GET(request: Request) {
   // Get cookies from request headers directly
   const requestHeaders = new Headers(request.headers);
   const cookieHeader = requestHeaders.get('cookie') || '';
-  console.log('[auth/callback] Raw cookie header:', cookieHeader.substring(0, 200));
+  
+  // Parse raw cookie header manually to see ALL cookies
+  const rawCookies = cookieHeader.split(';').map(c => c.trim()).filter(Boolean);
+  console.log('[auth/callback] ===== CALLBACK STARTED =====');
+  console.log('[auth/callback] Request URL:', request.url);
+  console.log('[auth/callback] Origin:', cleanOrigin);
+  console.log('[auth/callback] Code:', code ? `${code.substring(0, 20)}...` : 'MISSING');
+  console.log('[auth/callback] Raw cookie header length:', cookieHeader.length);
+  console.log('[auth/callback] Raw cookie count (parsed):', rawCookies.length);
+  console.log('[auth/callback] Raw cookie names:', rawCookies.map(c => {
+    const [name] = c.split('=');
+    return name;
+  }).join(', ') || 'NONE');
+  
+  // Check for PKCE verifier in raw header
+  const verifierInHeader = rawCookies.find(c => 
+    c.includes('code_verifier') || 
+    c.includes('verifier') ||
+    c.includes('code-verifier')
+  );
+  console.log('[auth/callback] PKCE verifier in raw header:', verifierInHeader ? 'YES' : 'NO');
 
   const cookieStore = await cookies();
   
   // Force read cookies immediately to ensure they're available
   const allCookies = cookieStore.getAll();
-  console.log('[auth/callback] Cookies from cookieStore:', allCookies.map(c => c.name).join(', '));
+  console.log('[auth/callback] CookieStore cookie count:', allCookies.length);
+  console.log('[auth/callback] CookieStore cookie names:', allCookies.map(c => c.name).join(', ') || 'NONE');
   
   // Debug: Check for PKCE verifier cookie - Supabase SSR uses this format
-  const verifierCookie = allCookies.find(c => 
-    c.name.includes('code_verifier') || 
-    c.name.includes('verifier') ||
-    (c.name.startsWith('sb-') && c.name.includes('code-verifier'))
-  );
+  // Try multiple patterns
+  const verifierCookie = allCookies.find(c => {
+    const name = c.name.toLowerCase();
+    return name.includes('code_verifier') || 
+           name.includes('verifier') ||
+           name.includes('code-verifier') ||
+           (name.startsWith('sb-') && name.includes('verifier'));
+  });
   
   if (!verifierCookie) {
-    console.warn('[auth/callback] No PKCE verifier cookie found in cookieStore');
-    console.warn('[auth/callback] All cookies:', JSON.stringify(allCookies.map(c => ({ name: c.name, valueLength: c.value?.length || 0 })), null, 2));
+    console.error('[auth/callback] ❌ NO PKCE VERIFIER COOKIE FOUND');
+    console.error('[auth/callback] All cookies from cookieStore:', JSON.stringify(
+      allCookies.map(c => ({ 
+        name: c.name, 
+        valueLength: c.value?.length || 0,
+        hasValue: !!c.value && c.value.length > 0
+      })), 
+      null, 
+      2
+    ));
+    console.error('[auth/callback] This is the root cause - cookie not received by server');
   } else {
-    console.log('[auth/callback] Found PKCE verifier cookie:', verifierCookie.name, 'value length:', verifierCookie.value?.length || 0);
+    console.log('[auth/callback] ✅ Found PKCE verifier cookie:', verifierCookie.name);
+    console.log('[auth/callback] Verifier value length:', verifierCookie.value?.length || 0);
   }
 
   // Create response AFTER reading cookies but BEFORE creating supabase client
