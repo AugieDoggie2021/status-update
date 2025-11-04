@@ -1,40 +1,30 @@
-import { createClient } from '@supabase/supabase-js';
-import { cookies } from 'next/headers';
+import { createClient } from '@/lib/supabase/server';
 import { getAdminClient } from './supabase';
 
 /**
  * Get the current authenticated user session (server-side)
+ * Uses the SSR client which properly handles cookies
  */
 export async function getServerSession() {
-  const cookieStore = await cookies();
-  const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      auth: {
-        storage: {
-          getItem: (key: string) => {
-            const cookie = cookieStore.get(key);
-            return cookie?.value ?? null;
-          },
-          setItem: (key: string, value: string) => {
-            cookieStore.set(key, value, { path: '/', httpOnly: true, secure: true, sameSite: 'lax' });
-          },
-          removeItem: (key: string) => {
-            cookieStore.delete(key);
-          },
-        },
-      },
+  try {
+    const supabase = await createClient();
+    const { data: { user }, error } = await supabase.auth.getUser();
+    
+    if (error) {
+      console.warn('[getServerSession] Error getting user:', error.message);
+      return null;
     }
-  );
+    
+    if (!user) {
+      console.warn('[getServerSession] No user found');
+      return null;
+    }
 
-  const { data: { user }, error } = await supabase.auth.getUser();
-  
-  if (error || !user) {
+    return { user };
+  } catch (error) {
+    console.error('[getServerSession] Exception:', error);
     return null;
   }
-
-  return { user };
 }
 
 /**
@@ -55,6 +45,7 @@ export async function requireAuth() {
 export async function getRole(programId: string): Promise<'OWNER' | 'CONTRIBUTOR' | 'VIEWER' | null> {
   const session = await getServerSession();
   if (!session) {
+    console.warn(`[getRole] No session for programId: ${programId}`);
     return null;
   }
 
@@ -66,7 +57,13 @@ export async function getRole(programId: string): Promise<'OWNER' | 'CONTRIBUTOR
     .eq('user_id', session.user.id)
     .maybeSingle();
 
-  if (error || !data) {
+  if (error) {
+    console.error(`[getRole] Database error for programId ${programId}, user ${session.user.id}:`, error.message);
+    return null;
+  }
+
+  if (!data) {
+    console.warn(`[getRole] No membership found for programId: ${programId}, user: ${session.user.id}`);
     return null;
   }
 

@@ -13,18 +13,23 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    console.log(`[GET /api/role] Checking role for programId: ${programId}`);
+    
     const role = await getRole(programId);
 
     if (!role) {
+      console.warn(`[GET /api/role] User does not have access to programId: ${programId}`);
       return NextResponse.json(
         { ok: false, error: 'FORBIDDEN', role: null },
         { status: 403 }
       );
     }
 
+    console.log(`[GET /api/role] User role for programId ${programId}: ${role}`);
     return NextResponse.json({ ok: true, role });
   } catch (error) {
     if (error instanceof Error && error.message === 'UNAUTHORIZED') {
+      console.warn('[GET /api/role] UNAUTHORIZED');
       return NextResponse.json(
         { ok: false, error: 'UNAUTHORIZED', role: null },
         { status: 401 }
