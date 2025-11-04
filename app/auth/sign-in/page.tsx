@@ -63,42 +63,64 @@ function SignInForm() {
   async function signWithGoogle() {
     setErr(null); setLoading(true);
     
-    // Log before OAuth redirect
-    if (typeof window !== 'undefined') {
-      console.log('[SignIn] Before Google OAuth:', {
-        redirectUrl,
-        currentOrigin: window.location.origin,
-        cookiesBefore: document.cookie.split(';').map(c => {
-          const [name] = c.trim().split('=');
-          return name;
-        }),
-        pkceCookiesBefore: document.cookie.split(';').filter(c => 
-          c.includes('code-verifier') || c.includes('verifier')
-        ).map(c => {
-          const [name, ...rest] = c.trim().split('=');
-          return { name, hasValue: rest.length > 0 && rest.join('=').length > 0 };
-        })
-      });
+    // ALWAYS log before OAuth redirect
+    console.log('[SignIn] ===== SIGN IN WITH GOOGLE CLICKED =====');
+    console.log('[SignIn] Redirect URL:', redirectUrl);
+    console.log('[SignIn] Current origin:', typeof window !== 'undefined' ? window.location.origin : 'SSR');
+    
+    if (typeof window !== 'undefined' && typeof document !== 'undefined') {
+      const cookiesBefore = document.cookie.split(';').map(c => {
+        const [name] = c.trim().split('=');
+        return name;
+      }).filter(Boolean);
+      
+      console.log('[SignIn] Cookies before OAuth:', cookiesBefore.length, cookiesBefore);
+      console.log('[SignIn] Full cookie string before:', document.cookie || '(none)');
+      
+      const pkceCookiesBefore = document.cookie.split(';').filter(c => 
+        c.includes('code-verifier') || c.includes('verifier')
+      );
+      console.log('[SignIn] PKCE cookies before:', pkceCookiesBefore.length, pkceCookiesBefore);
     }
     
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: "google",
-      options: { 
-        redirectTo: `${redirectUrl}?redirect_to=/dashboard`,
-        queryParams: {
-          access_type: 'offline',
-          prompt: 'consent',
+    try {
+      const { error, data } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: { 
+          redirectTo: `${redirectUrl}?redirect_to=/dashboard`,
+          queryParams: {
+            access_type: 'offline',
+            prompt: 'consent',
+          }
         }
+      });
+      
+      if (error) {
+        setErr(error.message);
+        console.error('[SignIn] ❌ Google OAuth error:', error.message);
+        setLoading(false);
+      } else {
+        console.log('[SignIn] ✅ OAuth call succeeded, redirect initiated');
+        console.log('[SignIn] OAuth data:', data);
+        
+        // Check cookies again after a brief delay
+        if (typeof window !== 'undefined' && typeof document !== 'undefined') {
+          setTimeout(() => {
+            console.log('[SignIn] Cookies AFTER OAuth call:', document.cookie || '(none)');
+            const cookiesAfter = document.cookie.split(';').map(c => {
+              const [name] = c.trim().split('=');
+              return name;
+            }).filter(Boolean);
+            console.log('[SignIn] Cookie names AFTER:', cookiesAfter);
+          }, 200);
+        }
+        
+        // Don't set loading to false - redirect will happen
       }
-    });
-    
-    setLoading(false);
-    if (error) {
-      setErr(error.message);
-      console.error("Google OAuth error:", error.message);
-    } else {
-      // Log after OAuth call (redirect will happen)
-      console.log('[SignIn] OAuth redirect initiated, waiting for redirect...');
+    } catch (error) {
+      console.error('[SignIn] ❌ Exception during OAuth:', error);
+      setErr(error instanceof Error ? error.message : 'Unknown error');
+      setLoading(false);
     }
   }
 
