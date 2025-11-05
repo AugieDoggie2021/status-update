@@ -201,7 +201,7 @@ Add HIGH risk: vendor API outage window announced for Tue 2–4am.`;
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-3">
-            <pre className="text-xs bg-muted p-4 rounded-md overflow-auto max-h-[60vh]">
+            <pre className="text-xs bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 p-4 rounded-md overflow-auto max-h-[60vh] border border-slate-200 dark:border-slate-700">
               {JSON.stringify(parsedData, null, 2)}
             </pre>
             <Button
@@ -227,7 +227,7 @@ Add HIGH risk: vendor API outage window announced for Tue 2–4am.`;
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
-            <div className="whitespace-pre-wrap text-sm bg-muted p-4 rounded-md">
+            <div className="whitespace-pre-wrap text-sm bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 p-4 rounded-md border border-slate-200 dark:border-slate-700">
               {weeklySummary}
             </div>
             <Button onClick={handleCopyWeekly} variant="outline" className="w-full">
