@@ -82,42 +82,41 @@ export default function DashboardClient() {
         )}
         <div>
           <h3 className="text-xl font-display font-bold tracking-tight mb-3 text-slate-900 dark:text-slate-100">Workstreams</h3>
-            {isLoadingWorkstreams ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                {[1, 2, 3, 4].map((i) => (
-                  <Skeleton key={i} className="h-40" />
-                ))}
-              </div>
-            ) : workstreams.length === 0 ? (
-              <p className="text-sm text-slate-600 dark:text-slate-400">No workstreams found. Apply an update to create workstreams.</p>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                {workstreams.map((workstream) => (
-                  <WorkstreamCard
-                    key={workstream.id}
-                    workstream={workstream}
-                    onClick={() =>
-                      setSelectedWorkstreamId(selectedWorkstreamId === workstream.id ? null : workstream.id)
-                    }
-                    isSelected={selectedWorkstreamId === workstream.id}
-                  />
-                ))}
-              </div>
-            )}
-          </div>
-
-          {canWrite ? (
-            <UpdateComposer programId={PROGRAM_ID} onUpdateApplied={handleUpdateApplied} />
+          {isLoadingWorkstreams ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {[1, 2, 3, 4].map((i) => (
+                <Skeleton key={i} className="h-40" />
+              ))}
+            </div>
+          ) : workstreams.length === 0 ? (
+            <p className="text-sm text-slate-600 dark:text-slate-400">No workstreams found. Apply an update to create workstreams.</p>
           ) : (
-            <Card className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl shadow-md">
-              <CardContent className="pt-6">
-                <p className="text-slate-600 dark:text-slate-400 text-center">
-                  You have viewer access to this program. Contact your engagement lead to request edit access.
-                </p>
-              </CardContent>
-            </Card>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {workstreams.map((workstream) => (
+                <WorkstreamCard
+                  key={workstream.id}
+                  workstream={workstream}
+                  onClick={() =>
+                    setSelectedWorkstreamId(selectedWorkstreamId === workstream.id ? null : workstream.id)
+                  }
+                  isSelected={selectedWorkstreamId === workstream.id}
+                />
+              ))}
+            </div>
           )}
         </div>
+
+        {canWrite ? (
+          <UpdateComposer programId={PROGRAM_ID} onUpdateApplied={handleUpdateApplied} />
+        ) : (
+          <Card className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl shadow-md">
+            <CardContent className="pt-6">
+              <p className="text-slate-600 dark:text-slate-400 text-center">
+                You have viewer access to this program. Contact your engagement lead to request edit access.
+              </p>
+            </CardContent>
+          </Card>
+        )}
       </div>
     </div>
   );
