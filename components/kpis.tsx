@@ -51,8 +51,8 @@ export function KPIs({ workstreams, risks, overall: overallProp }: KPIsProps) {
   return (
     <div className="grid gap-4 md:grid-cols-4">
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 bg-gradient-to-r from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800">
-          <CardTitle className="text-sm font-medium">Overall Status</CardTitle>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 bg-gradient-to-r from-slate-700 to-slate-800 dark:from-slate-800 dark:to-slate-900">
+          <CardTitle className="text-sm font-medium text-white">Overall Status</CardTitle>
         </CardHeader>
         <CardContent>
           <Badge className={getStatusColor(overallStatus)}>
@@ -61,8 +61,8 @@ export function KPIs({ workstreams, risks, overall: overallProp }: KPIsProps) {
         </CardContent>
       </Card>
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 bg-gradient-to-r from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800">
-          <CardTitle className="text-sm font-medium">% On Track</CardTitle>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 bg-gradient-to-r from-slate-700 to-slate-800 dark:from-slate-800 dark:to-slate-900">
+          <CardTitle className="text-sm font-medium text-white">% On Track</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="text-2xl font-bold">{onTrackPercent}%</div>
@@ -72,8 +72,8 @@ export function KPIs({ workstreams, risks, overall: overallProp }: KPIsProps) {
         </CardContent>
       </Card>
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 bg-gradient-to-r from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800">
-          <CardTitle className="text-sm font-medium">Open Risks</CardTitle>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 bg-gradient-to-r from-slate-700 to-slate-800 dark:from-slate-800 dark:to-slate-900">
+          <CardTitle className="text-sm font-medium text-white">Open Risks</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="text-2xl font-bold">{openRisksCount}</div>
@@ -81,8 +81,8 @@ export function KPIs({ workstreams, risks, overall: overallProp }: KPIsProps) {
         </CardContent>
       </Card>
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 bg-gradient-to-r from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800">
-          <CardTitle className="text-sm font-medium">Next 7 Days</CardTitle>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 bg-gradient-to-r from-slate-700 to-slate-800 dark:from-slate-800 dark:to-slate-900">
+          <CardTitle className="text-sm font-medium text-white">Next 7 Days</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="text-2xl font-bold">{next7DayMilestones}</div>

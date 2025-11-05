@@ -19,7 +19,7 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "Advisory Status Tracker",
+  title: "Status Tracker",
   description: "Track advisory engagement status across workstreams",
 };
 

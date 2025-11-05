@@ -1,6 +1,9 @@
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 
+// This route uses cookies for authentication checks, so it must be dynamic
+export const dynamic = 'force-dynamic';
+
 export default async function Home() {
   // Check if user is already signed in
   const supabase = await createClient();

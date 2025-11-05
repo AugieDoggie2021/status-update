@@ -32,11 +32,11 @@ export function Nav() {
   const canWrite = role === 'OWNER' || role === 'CONTRIBUTOR';
 
   return (
-    <nav className="border-b backdrop-blur-xl bg-white/50 dark:bg-slate-900/40 border-b-white/20">
+    <nav className="border-b backdrop-blur-xl bg-gradient-to-r from-slate-50 via-white to-slate-50 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900 border-b-slate-200/50 dark:border-b-slate-700/50">
       <div className="container mx-auto px-4">
         <div className="flex h-16 items-center justify-between">
           <h1 className="text-2xl font-display font-bold tracking-tight bg-gradient-to-br from-emerald-600 to-sky-600 bg-clip-text text-transparent">
-            Advisory Status Tracker
+            Status Tracker
           </h1>
           <div className="flex items-center space-x-2">
             {navItems.map((item) => {

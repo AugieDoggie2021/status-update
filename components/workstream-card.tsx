@@ -51,7 +51,7 @@ export function WorkstreamCard({
     >
       <Card
         className={cn(
-          'cursor-pointer card-lift backdrop-blur-xl bg-white/50 dark:bg-slate-900/40 border border-white/20 rounded-2xl shadow-xl',
+          'cursor-pointer card-lift backdrop-blur-xl bg-white/50 dark:bg-slate-900/40 border border-white/20 rounded-2xl shadow-xl h-full flex flex-col',
           isSelected && 'ring-2 ring-emerald-500/50'
         )}
         onClick={onClick}
@@ -87,7 +87,7 @@ export function WorkstreamCard({
           <p className="text-sm text-muted-foreground">Lead: {workstream.lead}</p>
         )}
       </CardHeader>
-      <CardContent className="space-y-3">
+      <CardContent className="space-y-3 flex-grow">
         <div>
           <div className="flex items-center justify-between text-sm mb-1">
             <span className="text-muted-foreground">Progress</span>

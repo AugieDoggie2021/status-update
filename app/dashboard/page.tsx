@@ -2,6 +2,9 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import DashboardClient from './DashboardClient';
 
+// This route requires authentication and uses cookies, so it must be dynamic
+export const dynamic = 'force-dynamic';
+
 export default async function DashboardPage() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -11,7 +14,7 @@ export default async function DashboardPage() {
   }
 
   return (
-    <main className="p-6">
+    <main className="p-6 bg-gradient-to-br from-slate-50 via-white to-slate-50/50 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 min-h-screen">
       <DashboardClient />
     </main>
   );

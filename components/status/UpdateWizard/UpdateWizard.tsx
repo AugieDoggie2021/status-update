@@ -30,15 +30,15 @@ interface UpdateData {
 
 export function UpdateWizard({ workstreams, onComplete }: UpdateWizardProps) {
   const [step, setStep] = useState<Step>('select');
-  const [selectedWorkstreams, setSelectedWorkstreams] = useState<string[]>([]);
+  const [selectedWorkstream, setSelectedWorkstream] = useState<string | null>(null);
   const [weekStart, setWeekStart] = useState<string>(getWeekStart(new Date()));
   const [updates, setUpdates] = useState<Record<string, UpdateData>>({});
   const [existingUpdates, setExistingUpdates] = useState<Record<string, StatusUpdate>>({});
   const [loading, setLoading] = useState(false);
 
-  // Load existing updates for selected workstreams
+  // Load existing updates for selected workstream
   const loadExistingUpdates = async () => {
-    if (selectedWorkstreams.length === 0) return;
+    if (!selectedWorkstream) return;
 
     try {
       const programId = process.env.NEXT_PUBLIC_PROGRAM_ID;
@@ -51,49 +51,41 @@ export function UpdateWizard({ workstreams, onComplete }: UpdateWizardProps) {
 
       const existingMap: Record<string, StatusUpdate> = {};
       data.forEach((update: StatusUpdate) => {
-        if (selectedWorkstreams.includes(update.workstream_id)) {
+        if (update.workstream_id === selectedWorkstream) {
           existingMap[update.workstream_id] = update;
         }
       });
       setExistingUpdates(existingMap);
 
       // Pre-populate updates with existing data or defaults
-      const updatesMap: Record<string, UpdateData> = {};
-      selectedWorkstreams.forEach(wsId => {
-        const existing = existingMap[wsId];
-        const workstream = workstreams.find(ws => ws.id === wsId);
-        if (workstream) {
-          updatesMap[wsId] = {
-            workstreamId: wsId,
+      const existing = existingMap[selectedWorkstream];
+      const workstream = workstreams.find(ws => ws.id === selectedWorkstream);
+      if (workstream) {
+        setUpdates({
+          [selectedWorkstream]: {
+            workstreamId: selectedWorkstream,
             weekStart,
             rag: existing?.rag || workstream.status,
             progressPercent: existing?.progress_percent || workstream.percent_complete,
             accomplishments: existing?.accomplishments || '',
             blockers: existing?.blockers || '',
             planNext: existing?.plan_next || '',
-          };
-        }
-      });
-      setUpdates(updatesMap);
+          },
+        });
+      }
     } catch (error) {
       console.error('Error loading existing updates:', error);
     }
   };
 
-  const handleWorkstreamToggle = (wsId: string) => {
-    setSelectedWorkstreams(prev => {
-      if (prev.includes(wsId)) {
-        return prev.filter(id => id !== wsId);
-      } else {
-        return [...prev, wsId];
-      }
-    });
+  const handleWorkstreamSelect = (wsId: string) => {
+    setSelectedWorkstream(wsId);
   };
 
   const handleNext = () => {
     if (step === 'select') {
-      if (selectedWorkstreams.length === 0) {
-        alert('Please select at least one workstream');
+      if (!selectedWorkstream) {
+        alert('Please select a workstream');
         return;
       }
       loadExistingUpdates();
@@ -130,7 +122,7 @@ export function UpdateWizard({ workstreams, onComplete }: UpdateWizardProps) {
       }
 
       const updatesArray = Object.values(updates).filter(
-        update => selectedWorkstreams.includes(update.workstreamId)
+        update => update.workstreamId === selectedWorkstream
       );
 
       const response = await fetch('/api/status-updates', {
@@ -147,6 +139,7 @@ export function UpdateWizard({ workstreams, onComplete }: UpdateWizardProps) {
         throw new Error(error.error || 'Failed to submit updates');
       }
 
+      // Redirect to dashboard after successful submission
       if (onComplete) {
         onComplete();
       }
@@ -162,9 +155,9 @@ export function UpdateWizard({ workstreams, onComplete }: UpdateWizardProps) {
     return (
       <Card>
         <CardHeader>
-          <CardTitle>Step 1: Select Workstreams</CardTitle>
+          <CardTitle>Step 1: Select Workstream</CardTitle>
           <p className="text-sm text-muted-foreground">
-            Choose which workstreams to update for {formatRelativeWeek(weekStart)}
+            Choose a workstream to update for {formatRelativeWeek(weekStart)}
           </p>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -177,11 +170,11 @@ export function UpdateWizard({ workstreams, onComplete }: UpdateWizardProps) {
               <div
                 key={workstream.id}
                 className={`flex items-center justify-between p-4 border rounded-lg cursor-pointer transition-colors ${
-                  selectedWorkstreams.includes(workstream.id)
+                  selectedWorkstream === workstream.id
                     ? 'border-primary bg-primary/5'
                     : 'border-border hover:bg-accent/50'
                 }`}
-                onClick={() => handleWorkstreamToggle(workstream.id)}
+                onClick={() => handleWorkstreamSelect(workstream.id)}
               >
                 <div className="flex-1">
                   <div className="flex items-center gap-2">
@@ -206,16 +199,16 @@ export function UpdateWizard({ workstreams, onComplete }: UpdateWizardProps) {
                   </p>
                 </div>
                 <input
-                  type="checkbox"
-                  checked={selectedWorkstreams.includes(workstream.id)}
-                  onChange={() => handleWorkstreamToggle(workstream.id)}
+                  type="radio"
+                  checked={selectedWorkstream === workstream.id}
+                  onChange={() => handleWorkstreamSelect(workstream.id)}
                   className="ml-4"
                 />
               </div>
             ))}
           </div>
           <div className="flex justify-end pt-4 border-t">
-            <Button onClick={handleNext} disabled={selectedWorkstreams.length === 0}>
+            <Button onClick={handleNext} disabled={!selectedWorkstream}>
               Next <ArrowRight className="ml-2 h-4 w-4" />
             </Button>
           </div>
@@ -225,14 +218,16 @@ export function UpdateWizard({ workstreams, onComplete }: UpdateWizardProps) {
   }
 
   if (step === 'form') {
-    const selectedWs = workstreams.filter(ws => selectedWorkstreams.includes(ws.id));
+    const selectedWs = workstreams.find(ws => ws.id === selectedWorkstream);
+    if (!selectedWs) return null;
+    
     return (
       <div className="space-y-4">
         <div className="flex items-center justify-between">
           <div>
             <h2 className="text-2xl font-bold">Step 2: Fill Updates</h2>
             <p className="text-sm text-muted-foreground">
-              Update status for {selectedWorkstreams.length} workstream{selectedWorkstreams.length !== 1 ? 's' : ''}
+              Update status for {selectedWs.name}
             </p>
           </div>
           <Button variant="outline" onClick={handleBack}>
@@ -240,16 +235,14 @@ export function UpdateWizard({ workstreams, onComplete }: UpdateWizardProps) {
           </Button>
         </div>
         <div className="space-y-4">
-          {selectedWs.map(workstream => (
-            <StatusUpdateForm
-              key={workstream.id}
-              workstream={workstream}
-              update={updates[workstream.id]}
-              existing={existingUpdates[workstream.id]}
-              weekStart={weekStart}
-              onChange={(field, value) => handleUpdateChange(workstream.id, field, value)}
-            />
-          ))}
+          <StatusUpdateForm
+            key={selectedWs.id}
+            workstream={selectedWs}
+            update={updates[selectedWs.id]}
+            existing={existingUpdates[selectedWs.id]}
+            weekStart={weekStart}
+            onChange={(field, value) => handleUpdateChange(selectedWs.id, field, value)}
+          />
         </div>
         <div className="flex justify-end pt-4 border-t">
           <Button onClick={handleNext}>
@@ -262,11 +255,14 @@ export function UpdateWizard({ workstreams, onComplete }: UpdateWizardProps) {
 
   if (step === 'review') {
     const updatesArray = Object.values(updates).filter(
-      update => selectedWorkstreams.includes(update.workstreamId)
+      update => update.workstreamId === selectedWorkstream
     );
+    const selectedWs = workstreams.find(ws => ws.id === selectedWorkstream);
+    if (!selectedWs) return null;
+    
     return (
       <StatusUpdateReview
-        workstreams={workstreams.filter(ws => selectedWorkstreams.includes(ws.id))}
+        workstreams={[selectedWs]}
         updates={updatesArray}
         weekStart={weekStart}
         onBack={handleBack}

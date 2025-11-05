@@ -93,10 +93,6 @@ export default function DashboardClient() {
 
   return (
     <div className="space-y-6">
-      <div className="bg-gradient-to-br from-emerald-500/30 via-emerald-300/20 to-sky-400/30 rounded-2xl p-6 backdrop-blur-xl border border-white/20 shadow-xl">
-        <h2 className="text-4xl font-display font-bold tracking-tight mb-2">Dashboard</h2>
-        <p className="text-muted-foreground">Program overview and status updates</p>
-      </div>
       {!canWrite && <ViewerBanner className="mb-4" />}
       <div>
         {isLoadingWorkstreams || isLoadingRisks || isLoadingOverall ? (
