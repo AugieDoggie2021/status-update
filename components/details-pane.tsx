@@ -59,9 +59,9 @@ export function DetailsPane({
 
   return (
     <Card className="sticky top-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 shadow-md">
-      <CardHeader className="bg-gradient-to-r from-slate-50 to-slate-100 dark:from-slate-800 dark:to-slate-800 border-b border-slate-200 dark:border-slate-700">
+      <CardHeader className="bg-gradient-to-r from-slate-50 to-slate-100 dark:from-slate-700 dark:to-slate-700 border-b border-slate-200 dark:border-slate-600">
         <CardTitle className="text-slate-900 dark:text-slate-100">{workstream.name}</CardTitle>
-        <p className="text-sm text-slate-600 dark:text-slate-400">
+        <p className="text-sm text-slate-700 dark:text-slate-300">
           Lead: {workstream.lead || 'Unassigned'}
         </p>
       </CardHeader>

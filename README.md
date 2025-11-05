@@ -617,6 +617,27 @@ See `scripts/SETUP_GIT_AUTH.md` for detailed authentication setup.
 - Use **smoke tests** to verify endpoints work after deployment
 - **Error responses** include `ok: false` and descriptive error messages for debugging
 
+## Design Guidelines
+
+### Color Contrast Rule
+
+**NEVER use dark text on dark backgrounds.** This is a critical accessibility and readability requirement.
+
+- Always ensure sufficient contrast between text and background colors
+- Use explicit color classes instead of generic `text-muted-foreground`:
+  - Primary text: `text-slate-900 dark:text-slate-100`
+  - Secondary text: `text-slate-700 dark:text-slate-300`
+  - Muted text: `text-slate-600 dark:text-slate-400`
+- When using gradient or colored backgrounds, ensure text remains readable:
+  - Light backgrounds (slate-50, slate-100): Use dark text (`text-slate-900`)
+  - Dark backgrounds (slate-700, slate-800, slate-900): Use light text (`text-white` or `text-slate-100`)
+- Test in both light and dark modes to ensure readability
+
+**Example violations to avoid:**
+- Dark text (`text-slate-900`) on dark blue/navy backgrounds
+- Generic `text-muted-foreground` on colored backgrounds
+- Insufficient contrast that makes text hard to read
+
 ## License
 
 MIT

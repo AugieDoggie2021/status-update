@@ -4,11 +4,11 @@ import { useState, useMemo } from 'react';
 import useSWR from 'swr';
 import { KPIs } from '@/components/kpis';
 import { WorkstreamCard } from '@/components/workstream-card';
-import { DetailsPane } from '@/components/details-pane';
+import { WorkstreamNotes } from '@/components/workstream-notes';
 import { UpdateComposer } from '@/components/update-composer';
 import { ViewerBanner } from '@/components/viewer-banner';
 import { Skeleton } from '@/components/ui/skeleton';
-import type { Workstream, Risk, ActionItem } from '@/lib/types';
+import type { Workstream, Risk } from '@/lib/types';
 import { apiJson } from '@/lib/fetcher';
 import { toArray } from '@/lib/normalize';
 import { Card, CardContent } from '@/components/ui/card';
@@ -28,11 +28,6 @@ export default function DashboardClient() {
     apiJson
   );
 
-  const { data: actionsResp, mutate: mutateActions, isLoading: isLoadingActions } = useSWR<ActionItem[] | any>(
-    PROGRAM_ID ? `/api/actions?programId=${PROGRAM_ID}` : null,
-    apiJson
-  );
-
   const { data: overallData, isLoading: isLoadingOverall } = useSWR<{ overall: 'GREEN' | 'YELLOW' | 'RED' } | any>(
     PROGRAM_ID ? `/api/overall?programId=${PROGRAM_ID}` : null,
     apiJson
@@ -45,7 +40,6 @@ export default function DashboardClient() {
 
   const workstreams = toArray<Workstream>(workstreamsResp);
   const risks = toArray<Risk>(risksResp, ['data', 'risks']);
-  const actions = toArray<ActionItem>(actionsResp, ['data', 'actions']);
 
   const role = (roleData?.role as any) || null;
   const canWrite = role === 'OWNER' || role === 'CONTRIBUTOR';
@@ -54,33 +48,9 @@ export default function DashboardClient() {
     return workstreams.find((w) => w.id === selectedWorkstreamId) || null;
   }, [workstreams, selectedWorkstreamId]);
 
-  const workstreamNames = useMemo(() => {
-    const map = new Map<string, string>();
-    workstreams.forEach((ws) => {
-      map.set(ws.id, ws.name);
-    });
-    return map;
-  }, [workstreams]);
-
   const handleUpdateApplied = () => {
     mutateWorkstreams();
     mutateRisks();
-    mutateActions();
-  };
-
-  const handleActionToggle = async (actionId: string, newStatus: 'OPEN' | 'IN_PROGRESS' | 'DONE') => {
-    if (!canWrite) return;
-    try {
-      const res = await fetch('/api/actions', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: actionId, programId: PROGRAM_ID, status: newStatus }),
-      });
-      if (!res.ok) throw new Error('Failed to update');
-      mutateActions();
-    } catch (error) {
-      console.error('Failed to update action:', error);
-    }
   };
 
   if (!PROGRAM_ID) {
@@ -106,10 +76,12 @@ export default function DashboardClient() {
         )}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <div className="lg:col-span-2 space-y-4">
-          <div>
-            <h3 className="text-xl font-display font-bold tracking-tight mb-3 text-slate-900 dark:text-slate-100">Workstreams</h3>
+      <div className="space-y-4">
+        {selectedWorkstream && (
+          <WorkstreamNotes workstream={selectedWorkstream} programId={PROGRAM_ID} />
+        )}
+        <div>
+          <h3 className="text-xl font-display font-bold tracking-tight mb-3 text-slate-900 dark:text-slate-100">Workstreams</h3>
             {isLoadingWorkstreams ? (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 {[1, 2, 3, 4].map((i) => (
@@ -145,16 +117,6 @@ export default function DashboardClient() {
               </CardContent>
             </Card>
           )}
-        </div>
-
-        <div className="lg:col-span-1">
-          <DetailsPane
-            workstream={selectedWorkstream}
-            risks={risks}
-            actions={actions}
-            onActionToggle={canWrite ? handleActionToggle : undefined}
-            canWrite={canWrite}
-          />
         </div>
       </div>
     </div>
