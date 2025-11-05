@@ -86,19 +86,19 @@ export default function DashboardClient() {
   if (!PROGRAM_ID) {
     return (
       <div className="text-center py-12">
-        <p className="text-muted-foreground">Please set NEXT_PUBLIC_PROGRAM_ID in your environment variables.</p>
+        <p className="text-slate-600 dark:text-slate-400">Please set NEXT_PUBLIC_PROGRAM_ID in your environment variables.</p>
       </div>
     );
   }
 
   return (
-    <div className="space-y-6">
-      {!canWrite && <ViewerBanner className="mb-4" />}
+    <div className="space-y-4">
+      {!canWrite && <ViewerBanner className="mb-2" />}
       <div>
         {isLoadingWorkstreams || isLoadingRisks || isLoadingOverall ? (
-          <div className="grid gap-4 md:grid-cols-4">
+          <div className="grid gap-3 md:grid-cols-4">
             {[1, 2, 3, 4].map((i) => (
-              <Skeleton key={i} className="h-24" />
+              <Skeleton key={i} className="h-20" />
             ))}
           </div>
         ) : (
@@ -106,20 +106,20 @@ export default function DashboardClient() {
         )}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 space-y-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <div className="lg:col-span-2 space-y-4">
           <div>
-            <h3 className="text-2xl font-display font-bold tracking-tight mb-4">Workstreams</h3>
+            <h3 className="text-xl font-display font-bold tracking-tight mb-3 text-slate-900 dark:text-slate-100">Workstreams</h3>
             {isLoadingWorkstreams ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 {[1, 2, 3, 4].map((i) => (
-                  <Skeleton key={i} className="h-48" />
+                  <Skeleton key={i} className="h-40" />
                 ))}
               </div>
             ) : workstreams.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No workstreams found. Apply an update to create workstreams.</p>
+              <p className="text-sm text-slate-600 dark:text-slate-400">No workstreams found. Apply an update to create workstreams.</p>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 {workstreams.map((workstream) => (
                   <WorkstreamCard
                     key={workstream.id}
@@ -137,9 +137,9 @@ export default function DashboardClient() {
           {canWrite ? (
             <UpdateComposer programId={PROGRAM_ID} onUpdateApplied={handleUpdateApplied} />
           ) : (
-            <Card className="backdrop-blur-xl bg-white/50 dark:bg-slate-900/40 border border-white/20 rounded-2xl shadow-xl">
+            <Card className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl shadow-md">
               <CardContent className="pt-6">
-                <p className="text-muted-foreground text-center">
+                <p className="text-slate-600 dark:text-slate-400 text-center">
                   You have viewer access to this program. Contact your engagement lead to request edit access.
                 </p>
               </CardContent>

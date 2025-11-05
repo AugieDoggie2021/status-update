@@ -51,7 +51,7 @@ export function WorkstreamCard({
     >
       <Card
         className={cn(
-          'cursor-pointer card-lift backdrop-blur-xl bg-white/50 dark:bg-slate-900/40 border border-white/20 rounded-2xl shadow-xl h-full flex flex-col',
+          'cursor-pointer card-lift bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl shadow-lg h-full flex flex-col',
           isSelected && 'ring-2 ring-emerald-500/50'
         )}
         onClick={onClick}
@@ -65,9 +65,9 @@ export function WorkstreamCard({
         }}
         aria-label={`Workstream: ${workstream.name}`}
       >
-        <CardHeader className="pb-3 bg-gradient-to-br from-emerald-500/30 via-emerald-300/20 to-sky-400/30 rounded-t-2xl border-b border-white/20">
+        <CardHeader className="pb-3 bg-gradient-to-br from-emerald-50 to-sky-50 dark:from-slate-800 dark:to-slate-800 rounded-t-2xl border-b border-slate-200 dark:border-slate-700">
           <div className="flex items-start justify-between">
-            <h3 className="font-display font-semibold text-lg tracking-tight">{workstream.name}</h3>
+            <h3 className="font-display font-semibold text-lg tracking-tight text-slate-900 dark:text-slate-100">{workstream.name}</h3>
             <div className="flex items-center gap-2">
               <motion.div
                 className={cn(
@@ -84,32 +84,32 @@ export function WorkstreamCard({
             </div>
           </div>
         {workstream.lead && (
-          <p className="text-sm text-muted-foreground">Lead: {workstream.lead}</p>
+          <p className="text-sm text-slate-600 dark:text-slate-400">Lead: {workstream.lead}</p>
         )}
       </CardHeader>
       <CardContent className="space-y-3 flex-grow">
         <div>
           <div className="flex items-center justify-between text-sm mb-1">
-            <span className="text-muted-foreground">Progress</span>
-            <span className="font-medium">{workstream.percent_complete}%</span>
+            <span className="text-slate-600 dark:text-slate-400">Progress</span>
+            <span className="font-medium text-slate-900 dark:text-slate-100">{workstream.percent_complete}%</span>
           </div>
           <Progress value={workstream.percent_complete} className="h-2" />
         </div>
 
         {workstream.next_milestone && (
           <div className="text-sm">
-            <p className="font-medium">{workstream.next_milestone}</p>
-            <p className="text-muted-foreground">
+            <p className="font-medium text-slate-900 dark:text-slate-100">{workstream.next_milestone}</p>
+            <p className="text-slate-600 dark:text-slate-400">
               {fmtRelativeDate(workstream.next_milestone_due)}
             </p>
           </div>
         )}
 
-        <p className="text-sm text-muted-foreground line-clamp-2">
+        <p className="text-sm text-slate-600 dark:text-slate-400 line-clamp-2">
           {workstream.summary || 'No summary available'}
         </p>
 
-        <p className="text-xs text-muted-foreground">
+        <p className="text-xs text-slate-500 dark:text-slate-500">
           Updated • {relativeTime}
         </p>
       </CardContent>

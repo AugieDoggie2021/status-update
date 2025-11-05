@@ -139,19 +139,19 @@ Add HIGH risk: vendor API outage window announced for Tue 2–4am.`;
 
   return (
     <>
-      <Card>
+      <Card className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 shadow-md">
         <CardHeader>
-          <CardTitle>Status Update</CardTitle>
+          <CardTitle className="text-slate-900 dark:text-slate-100">Status Update</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="flex items-center justify-between">
-            <label htmlFor="update-textarea" className="text-sm font-medium">
+            <label htmlFor="update-textarea" className="text-sm font-medium text-slate-900 dark:text-slate-100">
               Status Update
             </label>
             <button
               type="button"
               onClick={handleLoadDemo}
-              className="text-xs text-muted-foreground hover:text-foreground underline"
+              className="text-xs text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 underline"
             >
               Load Demo Script
             </button>
@@ -164,7 +164,7 @@ Add HIGH risk: vendor API outage window announced for Tue 2–4am.`;
             rows={8}
             className="font-mono text-sm"
           />
-          <p className="text-xs text-muted-foreground">
+          <p className="text-xs text-slate-600 dark:text-slate-400">
             Tip: try "Load Demo Script" for a realistic update.
           </p>
           <div className="flex flex-wrap gap-2">

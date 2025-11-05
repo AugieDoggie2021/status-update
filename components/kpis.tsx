@@ -49,44 +49,44 @@ export function KPIs({ workstreams, risks, overall: overallProp }: KPIsProps) {
   }, [wsArr]);
 
   return (
-    <div className="grid gap-4 md:grid-cols-4">
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 bg-gradient-to-r from-slate-700 to-slate-800 dark:from-slate-800 dark:to-slate-900">
+    <div className="grid gap-3 md:grid-cols-4">
+      <Card className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 shadow-md">
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 bg-gradient-to-r from-slate-700 to-slate-800 dark:from-slate-800 dark:to-slate-900 rounded-t-lg">
           <CardTitle className="text-sm font-medium text-white">Overall Status</CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="pt-2 pb-4">
           <Badge className={getStatusColor(overallStatus)}>
             {overallStatus}
           </Badge>
         </CardContent>
       </Card>
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 bg-gradient-to-r from-slate-700 to-slate-800 dark:from-slate-800 dark:to-slate-900">
+      <Card className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 shadow-md">
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 bg-gradient-to-r from-slate-700 to-slate-800 dark:from-slate-800 dark:to-slate-900 rounded-t-lg">
           <CardTitle className="text-sm font-medium text-white">% On Track</CardTitle>
         </CardHeader>
-        <CardContent>
-          <div className="text-2xl font-bold">{onTrackPercent}%</div>
-          <p className="text-xs text-muted-foreground">
+        <CardContent className="pt-2 pb-4">
+          <div className="text-2xl font-bold text-slate-900 dark:text-slate-100">{onTrackPercent}%</div>
+          <p className="text-xs text-slate-600 dark:text-slate-400">
             {wsArr.filter((w: any) => w.status === 'GREEN').length} of {wsArr.length} workstreams
           </p>
         </CardContent>
       </Card>
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 bg-gradient-to-r from-slate-700 to-slate-800 dark:from-slate-800 dark:to-slate-900">
+      <Card className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 shadow-md">
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 bg-gradient-to-r from-slate-700 to-slate-800 dark:from-slate-800 dark:to-slate-900 rounded-t-lg">
           <CardTitle className="text-sm font-medium text-white">Open Risks</CardTitle>
         </CardHeader>
-        <CardContent>
-          <div className="text-2xl font-bold">{openRisksCount}</div>
-          <p className="text-xs text-muted-foreground">Active risks</p>
+        <CardContent className="pt-2 pb-4">
+          <div className="text-2xl font-bold text-slate-900 dark:text-slate-100">{openRisksCount}</div>
+          <p className="text-xs text-slate-600 dark:text-slate-400">Active risks</p>
         </CardContent>
       </Card>
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 bg-gradient-to-r from-slate-700 to-slate-800 dark:from-slate-800 dark:to-slate-900">
+      <Card className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 shadow-md">
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 bg-gradient-to-r from-slate-700 to-slate-800 dark:from-slate-800 dark:to-slate-900 rounded-t-lg">
           <CardTitle className="text-sm font-medium text-white">Next 7 Days</CardTitle>
         </CardHeader>
-        <CardContent>
-          <div className="text-2xl font-bold">{next7DayMilestones}</div>
-          <p className="text-xs text-muted-foreground">Upcoming milestones</p>
+        <CardContent className="pt-2 pb-4">
+          <div className="text-2xl font-bold text-slate-900 dark:text-slate-100">{next7DayMilestones}</div>
+          <p className="text-xs text-slate-600 dark:text-slate-400">Upcoming milestones</p>
         </CardContent>
       </Card>
     </div>

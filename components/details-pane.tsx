@@ -44,12 +44,12 @@ export function DetailsPane({
 
   if (!workstream) {
     return (
-      <Card className="sticky top-4">
+      <Card className="sticky top-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 shadow-md">
         <CardHeader>
-          <CardTitle>Details</CardTitle>
+          <CardTitle className="text-slate-900 dark:text-slate-100">Details</CardTitle>
         </CardHeader>
         <CardContent>
-          <p className="text-sm text-muted-foreground">
+          <p className="text-sm text-slate-600 dark:text-slate-400">
             Select a workstream to view details
           </p>
         </CardContent>
@@ -58,10 +58,10 @@ export function DetailsPane({
   }
 
   return (
-    <Card className="sticky top-4">
-      <CardHeader className="bg-gradient-to-r from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800">
-        <CardTitle>{workstream.name}</CardTitle>
-        <p className="text-sm text-muted-foreground">
+    <Card className="sticky top-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 shadow-md">
+      <CardHeader className="bg-gradient-to-r from-slate-50 to-slate-100 dark:from-slate-800 dark:to-slate-800 border-b border-slate-200 dark:border-slate-700">
+        <CardTitle className="text-slate-900 dark:text-slate-100">{workstream.name}</CardTitle>
+        <p className="text-sm text-slate-600 dark:text-slate-400">
           Lead: {workstream.lead || 'Unassigned'}
         </p>
       </CardHeader>
@@ -75,32 +75,32 @@ export function DetailsPane({
 
           <TabsContent value="summary" className="space-y-4 mt-4">
             <div>
-              <h4 className="text-sm font-semibold mb-2">Status</h4>
-              <Badge className={`${workstream.status === 'GREEN' ? 'bg-green-100 text-green-800' : workstream.status === 'YELLOW' ? 'bg-yellow-100 text-yellow-800' : 'bg-red-100 text-red-800'}`}>
+              <h4 className="text-sm font-semibold mb-2 text-slate-900 dark:text-slate-100">Status</h4>
+              <Badge className={`${workstream.status === 'GREEN' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100' : workstream.status === 'YELLOW' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-100' : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-100'}`}>
                 {workstream.status}
               </Badge>
             </div>
             <div>
-              <h4 className="text-sm font-semibold mb-2">Progress</h4>
-              <p className="text-sm">{workstream.percent_complete}% complete</p>
+              <h4 className="text-sm font-semibold mb-2 text-slate-900 dark:text-slate-100">Progress</h4>
+              <p className="text-sm text-slate-900 dark:text-slate-100">{workstream.percent_complete}% complete</p>
             </div>
             <div>
-              <h4 className="text-sm font-semibold mb-2">Summary</h4>
-              <p className="text-sm text-muted-foreground whitespace-pre-wrap">
+              <h4 className="text-sm font-semibold mb-2 text-slate-900 dark:text-slate-100">Summary</h4>
+              <p className="text-sm text-slate-600 dark:text-slate-400 whitespace-pre-wrap">
                 {workstream.summary || 'No summary available'}
               </p>
             </div>
             {workstream.next_milestone && (
               <div className="space-y-3">
                 <div>
-                  <h4 className="text-sm font-semibold mb-2">Next Milestone</h4>
-                  <p className="text-sm font-medium">{workstream.next_milestone}</p>
-                  <p className="text-xs text-muted-foreground">
+                  <h4 className="text-sm font-semibold mb-2 text-slate-900 dark:text-slate-100">Next Milestone</h4>
+                  <p className="text-sm font-medium text-slate-900 dark:text-slate-100">{workstream.next_milestone}</p>
+                  <p className="text-xs text-slate-600 dark:text-slate-400">
                     {fmtRelativeDate(workstream.next_milestone_due)}
                   </p>
                 </div>
-                <div className="pt-2 border-t">
-                  <label className="text-xs font-medium mb-1 block">
+                <div className="pt-2 border-t border-slate-200 dark:border-slate-700">
+                  <label className="text-xs font-medium mb-1 block text-slate-900 dark:text-slate-100">
                     Scenario: What if slip {slipDays > 0 ? `+${slipDays}` : slipDays} day{slipDays !== 1 ? 's' : ''}?
                   </label>
                   <Input
@@ -112,7 +112,7 @@ export function DetailsPane({
                     className="w-full"
                   />
                   {adjustedDueDate && slipDays > 0 && (
-                    <p className="text-xs text-muted-foreground mt-1 opacity-60">
+                    <p className="text-xs text-slate-500 dark:text-slate-500 mt-1">
                       → Would be due: {fmtRelativeDate(adjustedDueDate)}
                     </p>
                   )}
@@ -124,16 +124,16 @@ export function DetailsPane({
           <TabsContent value="risks" className="mt-4">
             <ScrollArea className="h-[400px]">
               {workstreamRisks.length === 0 ? (
-                <div className="text-center py-8 text-sm text-muted-foreground">
+                <div className="text-center py-8 text-sm text-slate-600 dark:text-slate-400">
                   <p className="font-medium">No open risks</p>
                   <p className="text-xs mt-1">Nice!</p>
                 </div>
               ) : (
                 <div className="space-y-3">
                   {workstreamRisks.map((risk) => (
-                    <div key={risk.id} className="p-3 border rounded-lg space-y-2">
+                    <div key={risk.id} className="p-3 border border-slate-200 dark:border-slate-700 rounded-lg space-y-2 bg-slate-50 dark:bg-slate-800/50">
                       <div className="flex items-start justify-between">
-                        <h5 className="text-sm font-semibold">{risk.title}</h5>
+                        <h5 className="text-sm font-semibold text-slate-900 dark:text-slate-100">{risk.title}</h5>
                         <Badge className={getSeverityColor(risk.severity)} variant="outline">
                           {risk.severity}
                         </Badge>
@@ -145,15 +145,15 @@ export function DetailsPane({
                         >
                           {risk.status}
                         </Badge>
-                        {risk.owner && <span className="text-muted-foreground">Owner: {risk.owner}</span>}
+                        {risk.owner && <span className="text-slate-600 dark:text-slate-400">Owner: {risk.owner}</span>}
                         {risk.due_date && (
-                          <span className="text-muted-foreground">
+                          <span className="text-slate-600 dark:text-slate-400">
                             Due: {fmtDate(risk.due_date)}
                           </span>
                         )}
                       </div>
                       {risk.notes && (
-                        <p className="text-xs text-muted-foreground">{risk.notes}</p>
+                        <p className="text-xs text-slate-600 dark:text-slate-400">{risk.notes}</p>
                       )}
                     </div>
                   ))}
@@ -165,16 +165,16 @@ export function DetailsPane({
           <TabsContent value="actions" className="mt-4">
             <ScrollArea className="h-[400px]">
               {workstreamActions.length === 0 ? (
-                <div className="text-center py-8 text-sm text-muted-foreground">
+                <div className="text-center py-8 text-sm text-slate-600 dark:text-slate-400">
                   <p className="font-medium">No open actions</p>
                   <p className="text-xs mt-1">All done!</p>
                 </div>
               ) : (
                 <div className="space-y-3">
                   {workstreamActions.map((action) => (
-                    <div key={action.id} className="p-3 border rounded-lg space-y-2">
+                    <div key={action.id} className="p-3 border border-slate-200 dark:border-slate-700 rounded-lg space-y-2 bg-slate-50 dark:bg-slate-800/50">
                       <div className="flex items-start justify-between">
-                        <h5 className="text-sm font-semibold">{action.title}</h5>
+                        <h5 className="text-sm font-semibold text-slate-900 dark:text-slate-100">{action.title}</h5>
                         <Badge
                           variant={action.status === 'DONE' ? 'default' : 'outline'}
                           className={canWrite ? "cursor-pointer" : "cursor-default opacity-75"}
@@ -194,16 +194,16 @@ export function DetailsPane({
                       </div>
                       <div className="flex items-center gap-2 text-xs">
                         {action.owner && (
-                          <span className="text-muted-foreground">Owner: {action.owner}</span>
+                          <span className="text-slate-600 dark:text-slate-400">Owner: {action.owner}</span>
                         )}
                         {action.due_date && (
-                          <span className="text-muted-foreground">
+                          <span className="text-slate-600 dark:text-slate-400">
                             Due: {fmtDate(action.due_date)}
                           </span>
                         )}
                       </div>
                       {action.notes && (
-                        <p className="text-xs text-muted-foreground">{action.notes}</p>
+                        <p className="text-xs text-slate-600 dark:text-slate-400">{action.notes}</p>
                       )}
                     </div>
                   ))}

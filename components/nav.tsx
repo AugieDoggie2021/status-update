@@ -51,8 +51,8 @@ export function Nav() {
                   className={cn(
                     'px-3 py-2 rounded-md text-sm font-medium transition-all',
                     pathname === item.href
-                      ? 'bg-gradient-to-r from-emerald-500/20 to-sky-500/20 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30'
-                      : 'text-muted-foreground hover:bg-accent/50 hover:text-accent-foreground'
+                      ? 'bg-gradient-to-r from-emerald-500/20 to-sky-500/20 text-slate-900 dark:text-slate-100 border border-emerald-500/30'
+                      : 'text-slate-700 dark:text-slate-300 hover:bg-accent/50 hover:text-slate-900 dark:hover:text-slate-100'
                   )}
                 >
                   {item.label}
@@ -65,8 +65,8 @@ export function Nav() {
                 className={cn(
                   'px-3 py-2 rounded-md text-sm font-medium transition-all',
                   pathname === '/admin/members'
-                    ? 'bg-gradient-to-r from-purple-500/20 to-pink-500/20 text-purple-700 dark:text-purple-400 border border-purple-500/30'
-                    : 'text-muted-foreground hover:bg-accent/50 hover:text-accent-foreground'
+                    ? 'bg-gradient-to-r from-purple-500/20 to-pink-500/20 text-slate-900 dark:text-slate-100 border border-purple-500/30'
+                    : 'text-slate-700 dark:text-slate-300 hover:bg-accent/50 hover:text-slate-900 dark:hover:text-slate-100'
                 )}
               >
                 Members
