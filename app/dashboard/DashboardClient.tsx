@@ -5,7 +5,6 @@ import useSWR from 'swr';
 import { KPIs } from '@/components/kpis';
 import { WorkstreamCard } from '@/components/workstream-card';
 import { WorkstreamNotes } from '@/components/workstream-notes';
-import { UpdateComposer } from '@/components/update-composer';
 import { ViewerBanner } from '@/components/viewer-banner';
 import { Skeleton } from '@/components/ui/skeleton';
 import type { Workstream, Risk } from '@/lib/types';
@@ -48,10 +47,6 @@ export default function DashboardClient() {
     return workstreams.find((w) => w.id === selectedWorkstreamId) || null;
   }, [workstreams, selectedWorkstreamId]);
 
-  const handleUpdateApplied = () => {
-    mutateWorkstreams();
-    mutateRisks();
-  };
 
   if (!PROGRAM_ID) {
     return (
@@ -106,17 +101,6 @@ export default function DashboardClient() {
           )}
         </div>
 
-        {canWrite ? (
-          <UpdateComposer programId={PROGRAM_ID} onUpdateApplied={handleUpdateApplied} />
-        ) : (
-          <Card className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl shadow-md">
-            <CardContent className="pt-6">
-              <p className="text-slate-600 dark:text-slate-400 text-center">
-                You have viewer access to this program. Contact your engagement lead to request edit access.
-              </p>
-            </CardContent>
-          </Card>
-        )}
       </div>
     </div>
   );

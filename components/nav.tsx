@@ -10,7 +10,7 @@ const PROGRAM_ID = process.env.NEXT_PUBLIC_PROGRAM_ID || '';
 
 const navItems = [
   { href: '/dashboard', label: 'Dashboard' },
-  { href: '/status-update', label: 'Status Update', requiresWrite: true },
+  { href: '/update', label: 'Update' },
   { href: '/workstreams', label: 'Workstreams' },
   { href: '/risks', label: 'Risks' },
   { href: '/actions', label: 'Actions' },
