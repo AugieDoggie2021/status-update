@@ -12,7 +12,8 @@
     "smoke:local": "node scripts/smoke-tests.js",
     "seed:program": "node scripts/seedProgram.mjs",
     "scan:runtime": "node scripts/repo-scan.mjs",
-    "grant:role": "tsx scripts/grant-role.ts"
+    "grant:role": "tsx scripts/grant-role.ts",
+    "git:sync": "powershell -ExecutionPolicy Bypass -File scripts/git-sync.ps1"
   },
   "dependencies": {
     "@radix-ui/react-alert-dialog": "^1.1.15",

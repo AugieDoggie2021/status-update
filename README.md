@@ -508,6 +508,48 @@ select count(*) as open_risks from risks where program_id = 'YOUR-PROGRAM-ID' an
 select count(*) as open_actions from actions where program_id = 'YOUR-PROGRAM-ID' and status != 'DONE';
 ```
 
+## Git Operations
+
+### Automated Sync Script
+
+Use the sync script to automate pull, commit, and push operations:
+
+```bash
+# Pull latest and push local commits
+npm run git:sync
+
+# Auto-commit uncommitted changes
+npm run git:sync -- -AutoCommit -CommitMessage "Your message"
+```
+
+Or use the PowerShell script directly:
+
+```powershell
+.\scripts\git-sync.ps1
+```
+
+### First-Time Git Setup
+
+1. **Configure Git Credential Manager**:
+   ```powershell
+   git config --global credential.helper manager
+   ```
+
+2. **Set user info** (if not already set):
+   ```powershell
+   git config user.name "AugieDoggie2021"
+   git config user.email "waldopotter@gmail.com"
+   ```
+
+3. **Authenticate with GitHub**:
+   - Create a Personal Access Token at: https://github.com/settings/tokens
+   - Select `repo` scope
+   - When Git prompts for credentials, use:
+     - Username: `AugieDoggie2021`
+     - Password: Your Personal Access Token (NOT your GitHub password)
+
+See `scripts/SETUP_GIT_AUTH.md` for detailed authentication setup.
+
 ## Troubleshooting
 
 ### A. OpenAI 500 on `/api/parse`
