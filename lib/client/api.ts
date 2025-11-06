@@ -35,8 +35,23 @@ export async function submitUpdate(notes: string, programId: string): Promise<{ 
   });
 
   if (!res.ok) {
-    const errorText = await res.text().catch(() => 'Failed to apply update');
-    throw new Error(errorText || 'Failed to apply update');
+    // Try to parse JSON error response
+    const contentType = res.headers.get('content-type');
+    if (contentType?.includes('application/json')) {
+      try {
+        const json = await res.json();
+        if (json.error) {
+          throw new Error(json.error);
+        }
+      } catch (parseError) {
+        // If JSON parse fails, fall through to generic error
+      }
+    } else {
+      // Try text if not JSON
+      const text = await res.text().catch(() => '');
+      throw new Error(text || 'Failed to apply update');
+    }
+    throw new Error('Failed to apply update');
   }
 
   const data = await res.json();
@@ -87,5 +102,32 @@ export async function getNarrative(programId: string): Promise<NarrativeResponse
     console.error('Failed to fetch narrative:', error);
     return { summary: '' };
   }
+}
+
+/**
+ * Get deleted workstreams for admin view
+ */
+export async function getDeletedWorkstreams(programId: string) {
+  const r = await fetch(`/api/workstreams/deleted?programId=${encodeURIComponent(programId)}`, { 
+    cache: 'no-store' 
+  });
+  if (!r.ok) throw new Error('Failed to load deleted items');
+  return r.json();
+}
+
+/**
+ * Restore a soft-deleted workstream
+ */
+export async function restoreWorkstream(id: string, programId: string) {
+  const r = await fetch(`/api/workstreams/${id}/restore`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ programId }),
+  });
+  if (!r.ok) {
+    const json = await r.json().catch(() => ({}));
+    throw new Error(json.error || await r.text().catch(() => 'Failed to restore'));
+  }
+  return r.json();
 }
 

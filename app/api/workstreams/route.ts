@@ -53,6 +53,7 @@ export async function GET(request: NextRequest) {
       .from('workstreams')
       .select('*')
       .eq('program_id', programId)
+      .is('deleted_at', null) // Exclude soft-deleted items
       .order('updated_at', { ascending: false });
 
     if (error) {
@@ -245,9 +246,13 @@ export async function DELETE(request: NextRequest) {
 
     const supabase = getAdminClient();
 
+    // Soft delete: set deleted_at timestamp
     const { error } = await supabase
       .from('workstreams')
-      .delete()
+      .update({ 
+        deleted_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      })
       .eq('id', id)
       .eq('program_id', programId);
 

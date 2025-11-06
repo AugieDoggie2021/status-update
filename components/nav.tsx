@@ -17,6 +17,7 @@ type NavItem = {
 const navItems: NavItem[] = [
   { href: '/dashboard', label: 'Dashboard' },
   { href: '/update', label: 'Update', requiresWrite: true },
+  { href: '/admin/deleted', label: 'Admin', requiresWrite: true },
 ];
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());

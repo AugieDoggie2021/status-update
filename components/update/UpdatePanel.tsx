@@ -61,8 +61,10 @@ export default function UpdatePanel({ programId = PROGRAM_ID || "default" }: Upd
       router.refresh();
     } catch (e: any) {
       console.error(e);
+      // Error message is already extracted from server response in submitUpdate
+      const message = e?.message ?? "Please try again.";
       toast.error("Failed to submit", {
-        description: e?.message ?? "Please try again.",
+        description: message,
       });
     } finally {
       setLoading(false);

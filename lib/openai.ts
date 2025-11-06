@@ -24,9 +24,10 @@ Rules:
 2. Extract risks: workstream (can be null), title, severity (LOW/MEDIUM/HIGH), status (OPEN/MITIGATED/CLOSED), owner, due_date, notes
 3. Extract actions: workstream (can be null), title, owner, due_date, status (OPEN/IN_PROGRESS/DONE), notes
 4. Infer statuses from keywords: "slipped", "delayed", "blocker", "at risk" → YELLOW/RED; "on track", "complete" → GREEN
-5. Normalize relative dates to ISO format (YYYY-MM-DD) using today's date: ${todayISO}
-6. Default statuses: workstream = GREEN if not specified, risk = OPEN, action = OPEN
-7. Return null for optional fields if not mentioned
+5. Map status synonyms: "amber" → YELLOW; "on-track" → GREEN; "at risk" → YELLOW
+6. Normalize relative dates to ISO format (YYYY-MM-DD) using today's date: ${todayISO}
+7. Default statuses: workstream = GREEN if not specified, risk = OPEN, action = OPEN
+8. Return null for optional fields if not mentioned
 
 Return ONLY valid JSON matching the schema.`;
 
@@ -134,13 +135,42 @@ Return ONLY valid JSON matching the schema.`;
 
 /**
  * Fallback regex-based parser (naive, for when OpenAI fails)
- * Upgraded to recognize natural speech patterns like:
+ * Upgraded to recognize natural speech patterns and verb-led commands:
+ * - "update the Modeling & Analytics workstream to 47% and change the status to amber"
  * - "The Data Pipeline Ingest workstream is now at 70% and a status of Red"
  * - "Set Data Ingest to Red at 70%"
  * - "Data Ingest: now at 70%, status Red"
  */
+const STATUS_WORDS: Record<string, 'GREEN'|'YELLOW'|'RED'> = {
+  green: 'GREEN',
+  'on track': 'GREEN',
+  red: 'RED',
+  'at risk': 'YELLOW',
+  yellow: 'YELLOW',
+  amber: 'YELLOW',
+};
+
+function norm(s: string) {
+  return s.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+}
+
+function detectStatus(s: string): 'GREEN'|'YELLOW'|'RED' {
+  const n = norm(s);
+  if (/\bred\b/.test(n)) return 'RED';
+  if (/\b(amber|yellow|at risk)\b/.test(n)) return 'YELLOW';
+  if (/\b(on track|green)\b/.test(n)) return 'GREEN';
+  // default if not specified
+  return 'GREEN';
+}
+
+function detectPercent(s: string): number {
+  const m = s.match(/(\d{1,3})\s*%/);
+  if (!m) return 0;
+  const v = parseInt(m[1], 10);
+  return Math.max(0, Math.min(100, v));
+}
+
 export function naiveParseNotes(notes: string, todayISO: string): ParsedUpdate {
-  // Normalize whitespace
   const text = notes.replace(/\s+/g, ' ').trim();
 
   const workstreams: {
@@ -152,107 +182,86 @@ export function naiveParseNotes(notes: string, todayISO: string): ParsedUpdate {
     next_milestone_due: string | null;
   }[] = [];
 
-  // 1) Pattern: "<Name>: details…" (existing behavior)
-  //    e.g., "Data Ingest Pipeline: now at 70%, status Red"
-  const colonMatches = text.match(/([A-Za-z0-9&/\-\s]+):\s*([^;.]+)(?=[;. ]|$)/g) || [];
+  // A) Support "Name: details" (existing behavior)
+  const colonMatches = text.match(/([A-Za-z0-9&/\-\s]+):\s*([^.;]+)(?=[.;]|$)/g) || [];
   for (const m of colonMatches) {
     const mm = m.match(/([A-Za-z0-9&/\-\s]+):\s*(.+)/);
     if (!mm) continue;
-    const name = mm[1].trim();
+    const nameCandidate = mm[1].trim();
     const rest = mm[2].trim();
-    const status = /red/i.test(rest) ? 'RED' : /yellow|at\s*risk/i.test(rest) ? 'YELLOW' : 'GREEN';
-    const pct = (() => {
-      const pm = rest.match(/(\d{1,3})\s*%/);
-      if (!pm) return 0;
-      const v = parseInt(pm[1], 10);
-      return Math.max(0, Math.min(100, v));
-    })();
+    const nameStop = norm(nameCandidate);
+    if (['update','set','change','mark','make'].includes(nameStop)) continue; // don't treat verbs as names
     workstreams.push({
-      name,
-      status,
-      percent_complete: pct,
+      name: nameCandidate,
+      status: detectStatus(rest),
+      percent_complete: detectPercent(rest),
       summary: rest,
       next_milestone: null,
       next_milestone_due: null,
     });
   }
 
-  // 2) Pattern: "The <Name> workstream is now at 70% and (a )?status (of|is|=) Red"
-  //    Flexible pieces: optional "The", order of phrases, commas, "is now", "now at", etc.
-  //    Also handle: "<Name> is now 70% and Red"  /  "Set <Name> to Red at 70%"
-  //    We'll scan sentences and try multiple regexes.
+  // B) Verb-led commands: "update/set/change <NAME> workstream ... 47% ... (red|yellow|amber|green)"
   const sentences = text.split(/[.;]\s*/).filter(Boolean);
-
-  const tryPush = (nameRaw: string, pctRaw?: string, statusRaw?: string, fullSentence?: string) => {
-    const name = (nameRaw || '').replace(/\b(workstream|stream)\b/i, '').trim();
-    if (!name) return false;
-
-    let percent = 0;
-    if (pctRaw) {
-      const v = parseInt(pctRaw, 10);
-      if (!Number.isNaN(v)) percent = Math.max(0, Math.min(100, v));
-    }
-
-    let status: 'GREEN' | 'YELLOW' | 'RED' = 'GREEN';
-    if (statusRaw) {
-      const s = statusRaw.toUpperCase();
-      if (s.startsWith('R')) status = 'RED';
-      else if (s.startsWith('Y')) status = 'YELLOW';
-      else status = 'GREEN';
-    } else {
-      // Infer from words if present
-      if (/\bred\b/i.test(fullSentence || '')) status = 'RED';
-      else if (/\byellow|at\s*risk\b/i.test(fullSentence || '')) status = 'YELLOW';
-    }
-
-    workstreams.push({
-      name,
-      status,
-      percent_complete: percent,
-      summary: (fullSentence || '').trim() || `${name} updated.`,
-      next_milestone: null,
-      next_milestone_due: null,
-    });
-
-    return true;
-  };
-
   for (const s of sentences) {
     const sent = s.trim();
 
-    // a) "The <Name> workstream … at 70% … status (is|of|=) (Red|Yellow|Green)"
-    let m = sent.match(/^(?:the\s+)?(.+?)\s+workstream\b.*?(?:now\s+at\s+|at\s+|is\s+at\s+)?(\d{1,3})\s*%.*?(?:status\s*(?:is|of|=)\s*)(red|yellow|green)\b/i);
-    if (m && tryPush(m[1], m[2], m[3], sent)) continue;
+    // 1) update|set|change|mark|make <NAME> workstream ... % ... (red|yellow|amber|green)
+    let m = sent.match(/\b(update|set|change|mark|make)\s+(.+?)\s+workstream\b([^]*)/i);
+    if (m) {
+      const nameCandidate = m[2].trim();
+      const rest = m[3] ?? '';
+      workstreams.push({
+        name: nameCandidate,
+        status: detectStatus(rest),
+        percent_complete: detectPercent(rest),
+        summary: sent,
+        next_milestone: null,
+        next_milestone_due: null,
+      });
+      continue;
+    }
 
-    // b) "The <Name> workstream … status (is|of|=) Red … at 70%"
-    m = sent.match(/^(?:the\s+)?(.+?)\s+workstream\b.*?(?:status\s*(?:is|of|=)\s*)(red|yellow|green)\b.*?(?:at\s+|now\s+at\s+)?(\d{1,3})\s*%/i);
-    if (m && tryPush(m[1], m[3], m[2], sent)) continue;
+    // 2) "<NAME> workstream is now 47% and red"
+    m = sent.match(/^(.+?)\s+workstream\b([^]*)/i);
+    if (m) {
+      const nameCandidate = m[1].trim();
+      const rest = m[2] ?? '';
+      workstreams.push({
+        name: nameCandidate,
+        status: detectStatus(rest),
+        percent_complete: detectPercent(rest),
+        summary: sent,
+        next_milestone: null,
+        next_milestone_due: null,
+      });
+      continue;
+    }
 
-    // c) "<Name> is now 70% and Red" (no "workstream" keyword)
-    m = sent.match(/^(.+?)\s+(?:is\s+now\s+|is\s+|now\s+at\s+)?(\d{1,3})\s*%.*?\b(red|yellow|green)\b/i);
-    if (m && tryPush(m[1], m[2], m[3], sent)) continue;
-
-    // d) "Set <Name> to Red at 70%"
-    m = sent.match(/^set\s+(.+?)\s+to\s+(red|yellow|green)\b.*?(?:at\s+)?(\d{1,3})\s*%/i);
-    if (m && tryPush(m[1], m[3], m[2], sent)) continue;
-
-    // e) "<Name> … at 70%" (percent only)
-    m = sent.match(/^(.+?)\s+.*?(?:at\s+|now\s+at\s+)?(\d{1,3})\s*%/i);
-    if (m && tryPush(m[1], m[2], undefined, sent)) continue;
+    // 3) "<NAME> is now 47% and red" (no "workstream" word)
+    m = sent.match(/^(.+?)\s+(?:is\s+now\s+|is\s+|now\s+at\s+)?(\d{1,3})\s*%.*?\b(red|yellow|amber|green)\b/i);
+    if (m) {
+      const statusWord = m[3].toLowerCase();
+      workstreams.push({
+        name: m[1].trim(),
+        status: STATUS_WORDS[statusWord] || detectStatus(m[3]),
+        percent_complete: Math.max(0, Math.min(100, parseInt(m[2], 10))),
+        summary: sent,
+        next_milestone: null,
+        next_milestone_due: null,
+      });
+      continue;
+    }
   }
 
   // Deduplicate by name (last one wins)
-  const seen = new Map<string, number>();
+  const seen = new Set<string>();
   for (let i = workstreams.length - 1; i >= 0; i--) {
-    const key = workstreams[i].name.toLowerCase();
+    const key = norm(workstreams[i].name);
     if (seen.has(key)) workstreams.splice(i, 1);
-    else seen.set(key, 1);
+    else seen.add(key);
   }
 
-  return {
-    workstreams,
-    risks: [],
-    actions: [],
-  };
+  return { workstreams, risks: [], actions: [] };
 }
 

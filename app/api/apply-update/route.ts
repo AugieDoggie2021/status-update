@@ -78,37 +78,39 @@ export async function POST(request: NextRequest) {
       // Continue even if update log fails
     }
 
-    // Get all existing workstreams for fuzzy matching
+    // Get all existing workstreams for fuzzy matching (exclude deleted)
     const { data: allWorkstreams } = await supabase
       .from('workstreams')
       .select('id, name')
-      .eq('program_id', programId);
+      .eq('program_id', programId)
+      .is('deleted_at', null);
 
     const workstreamList = (allWorkstreams || []).map((ws) => ({ id: ws.id, name: ws.name }));
+
+    // Update-only mode: do not create new workstreams unless explicitly allowed
+    const allowCreate = false;
+    const unmatched: string[] = [];
 
     // Upsert workstreams using fuzzy matching
     let workstreamUpdateCount = 0;
     for (const ws of parsed.workstreams) {
-      // Try to find existing workstream using fuzzy match
+      // Normalize status synonyms (AMBER → YELLOW)
+      let status = (ws.status || 'GREEN').toUpperCase();
+      if (status === 'AMBER') status = 'YELLOW';
+
+      // Try to find existing workstream using exact or fuzzy match
       let existingId: string | null = null;
-      
-      // First try exact match (case-insensitive)
       const exactMatch = workstreamList.find((w) => w.name.toLowerCase() === ws.name.toLowerCase());
-      if (exactMatch) {
-        existingId = exactMatch.id;
-      } else {
-        // Use fuzzy matcher
-        existingId = matchWorkstreamId(ws.name, workstreamList);
-      }
+      existingId = exactMatch ? exactMatch.id : matchWorkstreamId(ws.name, workstreamList);
 
       const workstreamData = {
         program_id: programId,
         name: ws.name,
-        status: ws.status,
-        percent_complete: ws.percent_complete,
-        summary: ws.summary,
-        next_milestone: ws.next_milestone,
-        next_milestone_due: ws.next_milestone_due,
+        status: status as 'GREEN' | 'YELLOW' | 'RED',
+        percent_complete: ws.percent_complete ?? 0,
+        summary: ws.summary ?? '',
+        next_milestone: ws.next_milestone ?? null,
+        next_milestone_due: ws.next_milestone_due ?? null,
         updated_at: new Date().toISOString(),
       };
 
@@ -122,21 +124,34 @@ export async function POST(request: NextRequest) {
         } else {
           workstreamUpdateCount++;
         }
-      } else {
+      } else if (allowCreate) {
         const { error: insertError } = await supabase.from('workstreams').insert(workstreamData);
         if (insertError) {
           console.error(`[${routePath}] Workstream insert error:`, insertError);
         } else {
           workstreamUpdateCount++;
         }
+      } else {
+        unmatched.push(ws.name);
+        console.warn(`[${routePath}] No match found for workstream: "${ws.name}"`);
       }
     }
 
-    // Refresh workstream list after updates for risk/action mapping
+    // Fail loudly if nothing was updated and there are unmatched workstreams
+    if (workstreamUpdateCount === 0 && unmatched.length > 0) {
+      const candidates = (workstreamList || []).map(w => w.name).sort();
+      return NextResponse.json(
+        { ok: false, error: `No matching workstream found for: ${unmatched.join(', ')}. Try one of: ${candidates.join(' • ')}` },
+        { status: 400 }
+      );
+    }
+
+    // Refresh workstream list after updates for risk/action mapping (exclude deleted)
     const { data: workstreams } = await supabase
       .from('workstreams')
       .select('id, name')
-      .eq('program_id', programId);
+      .eq('program_id', programId)
+      .is('deleted_at', null);
 
     const workstreamMap = new Map<string, string>();
     workstreams?.forEach((ws) => {

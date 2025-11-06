@@ -26,6 +26,7 @@ export type Workstream = {
   next_milestone: string | null;
   next_milestone_due: string | null;
   updated_at: string;
+  deleted_at?: string | null;
 };
 
 export type Risk = {
