@@ -92,7 +92,8 @@ async function applyResolvedActions(
       patch.percent_complete = Math.max(0, Math.min(100, a.percent));
     }
     if (a.status) {
-      patch.status = a.status === 'AMBER' ? 'YELLOW' : a.status;
+      // Status is already normalized to GREEN/YELLOW/RED by parser
+      patch.status = a.status;
     }
     if (a.next_milestone !== undefined) {
       patch.next_milestone = a.next_milestone;
