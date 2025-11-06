@@ -52,6 +52,17 @@ export async function POST(request: NextRequest) {
 
     console.log(`[${routePath}] parsed workstreams: ${parsed.workstreams?.length ?? 0}, risks: ${parsed.risks?.length ?? 0}, actions: ${parsed.actions?.length ?? 0}`);
 
+    // Fail loudly if nothing was parsed
+    if ((parsed.workstreams?.length ?? 0) === 0 &&
+        (parsed.risks?.length ?? 0) === 0 &&
+        (parsed.actions?.length ?? 0) === 0) {
+      console.warn(`[${routePath}] No actionable items parsed from notes.`);
+      return NextResponse.json(
+        { ok: false, error: 'No workstreams recognized. Try "<Workstream Name>: now at 70%, status Red" or include the word "workstream".' },
+        { status: 400 }
+      );
+    }
+
     // Insert into updates table
     const { error: updateError } = await supabase
       .from('updates')

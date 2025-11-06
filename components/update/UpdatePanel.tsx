@@ -47,8 +47,14 @@ export default function UpdatePanel({ programId = PROGRAM_ID || "default" }: Upd
         description: `Updated ${updatedCount} item(s).`,
       });
 
-      // 1) Force SWR to refetch the dashboard data
-      await mutate(WORKSTREAMS_KEY(programId));
+      // 1) Force SWR to refetch all dashboard data (workstreams, KPIs, narrative)
+      await Promise.all([
+        mutate(WORKSTREAMS_KEY(programId)),
+        mutate(`/api/overall?programId=${encodeURIComponent(programId)}`),
+        mutate(`/api/risks?programId=${encodeURIComponent(programId)}`),
+        mutate(`/api/actions?programId=${encodeURIComponent(programId)}`),
+        mutate(`/api/explain-weekly?programId=${encodeURIComponent(programId)}`),
+      ]);
 
       // 2) Navigate and ensure server components refresh
       router.push("/dashboard");

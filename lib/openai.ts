@@ -134,25 +134,120 @@ Return ONLY valid JSON matching the schema.`;
 
 /**
  * Fallback regex-based parser (naive, for when OpenAI fails)
- * This is a very basic implementation - prefers OpenAI
+ * Upgraded to recognize natural speech patterns like:
+ * - "The Data Pipeline Ingest workstream is now at 70% and a status of Red"
+ * - "Set Data Ingest to Red at 70%"
+ * - "Data Ingest: now at 70%, status Red"
  */
 export function naiveParseNotes(notes: string, todayISO: string): ParsedUpdate {
-  // Extract workstream mentions
-  const workstreamMatches = notes.match(/(\w+):\s*([^;.]+)/g);
-  const workstreams = workstreamMatches?.map((match) => {
-    const [, name, rest] = match.match(/(\w+):\s*(.+)/) || [];
-    const hasRed = /red|blocker|critical|stopped/i.test(rest);
-    const hasYellow = /yellow|at risk|delayed|slipped/i.test(rest);
-    const percentMatch = rest.match(/(\d+)%/);
-    return {
-      name: name || '',
-      status: (hasRed ? 'RED' : hasYellow ? 'YELLOW' : 'GREEN') as 'GREEN' | 'YELLOW' | 'RED',
-      percent_complete: percentMatch ? parseInt(percentMatch[1], 10) : 0,
-      summary: rest.trim(),
+  // Normalize whitespace
+  const text = notes.replace(/\s+/g, ' ').trim();
+
+  const workstreams: {
+    name: string;
+    status: 'GREEN' | 'YELLOW' | 'RED';
+    percent_complete: number;
+    summary: string;
+    next_milestone: string | null;
+    next_milestone_due: string | null;
+  }[] = [];
+
+  // 1) Pattern: "<Name>: details…" (existing behavior)
+  //    e.g., "Data Ingest Pipeline: now at 70%, status Red"
+  const colonMatches = text.match(/([A-Za-z0-9&/\-\s]+):\s*([^;.]+)(?=[;. ]|$)/g) || [];
+  for (const m of colonMatches) {
+    const mm = m.match(/([A-Za-z0-9&/\-\s]+):\s*(.+)/);
+    if (!mm) continue;
+    const name = mm[1].trim();
+    const rest = mm[2].trim();
+    const status = /red/i.test(rest) ? 'RED' : /yellow|at\s*risk/i.test(rest) ? 'YELLOW' : 'GREEN';
+    const pct = (() => {
+      const pm = rest.match(/(\d{1,3})\s*%/);
+      if (!pm) return 0;
+      const v = parseInt(pm[1], 10);
+      return Math.max(0, Math.min(100, v));
+    })();
+    workstreams.push({
+      name,
+      status,
+      percent_complete: pct,
+      summary: rest,
       next_milestone: null,
       next_milestone_due: null,
-    };
-  }) || [];
+    });
+  }
+
+  // 2) Pattern: "The <Name> workstream is now at 70% and (a )?status (of|is|=) Red"
+  //    Flexible pieces: optional "The", order of phrases, commas, "is now", "now at", etc.
+  //    Also handle: "<Name> is now 70% and Red"  /  "Set <Name> to Red at 70%"
+  //    We'll scan sentences and try multiple regexes.
+  const sentences = text.split(/[.;]\s*/).filter(Boolean);
+
+  const tryPush = (nameRaw: string, pctRaw?: string, statusRaw?: string, fullSentence?: string) => {
+    const name = (nameRaw || '').replace(/\b(workstream|stream)\b/i, '').trim();
+    if (!name) return false;
+
+    let percent = 0;
+    if (pctRaw) {
+      const v = parseInt(pctRaw, 10);
+      if (!Number.isNaN(v)) percent = Math.max(0, Math.min(100, v));
+    }
+
+    let status: 'GREEN' | 'YELLOW' | 'RED' = 'GREEN';
+    if (statusRaw) {
+      const s = statusRaw.toUpperCase();
+      if (s.startsWith('R')) status = 'RED';
+      else if (s.startsWith('Y')) status = 'YELLOW';
+      else status = 'GREEN';
+    } else {
+      // Infer from words if present
+      if (/\bred\b/i.test(fullSentence || '')) status = 'RED';
+      else if (/\byellow|at\s*risk\b/i.test(fullSentence || '')) status = 'YELLOW';
+    }
+
+    workstreams.push({
+      name,
+      status,
+      percent_complete: percent,
+      summary: (fullSentence || '').trim() || `${name} updated.`,
+      next_milestone: null,
+      next_milestone_due: null,
+    });
+
+    return true;
+  };
+
+  for (const s of sentences) {
+    const sent = s.trim();
+
+    // a) "The <Name> workstream … at 70% … status (is|of|=) (Red|Yellow|Green)"
+    let m = sent.match(/^(?:the\s+)?(.+?)\s+workstream\b.*?(?:now\s+at\s+|at\s+|is\s+at\s+)?(\d{1,3})\s*%.*?(?:status\s*(?:is|of|=)\s*)(red|yellow|green)\b/i);
+    if (m && tryPush(m[1], m[2], m[3], sent)) continue;
+
+    // b) "The <Name> workstream … status (is|of|=) Red … at 70%"
+    m = sent.match(/^(?:the\s+)?(.+?)\s+workstream\b.*?(?:status\s*(?:is|of|=)\s*)(red|yellow|green)\b.*?(?:at\s+|now\s+at\s+)?(\d{1,3})\s*%/i);
+    if (m && tryPush(m[1], m[3], m[2], sent)) continue;
+
+    // c) "<Name> is now 70% and Red" (no "workstream" keyword)
+    m = sent.match(/^(.+?)\s+(?:is\s+now\s+|is\s+|now\s+at\s+)?(\d{1,3})\s*%.*?\b(red|yellow|green)\b/i);
+    if (m && tryPush(m[1], m[2], m[3], sent)) continue;
+
+    // d) "Set <Name> to Red at 70%"
+    m = sent.match(/^set\s+(.+?)\s+to\s+(red|yellow|green)\b.*?(?:at\s+)?(\d{1,3})\s*%/i);
+    if (m && tryPush(m[1], m[3], m[2], sent)) continue;
+
+    // e) "<Name> … at 70%" (percent only)
+    m = sent.match(/^(.+?)\s+.*?(?:at\s+|now\s+at\s+)?(\d{1,3})\s*%/i);
+    if (m && tryPush(m[1], m[2], undefined, sent)) continue;
+  }
+
+  // Deduplicate by name (last one wins)
+  const seen = new Map<string, number>();
+  for (let i = workstreams.length - 1; i >= 0; i--) {
+    const key = workstreams[i].name.toLowerCase();
+    if (seen.has(key)) workstreams.splice(i, 1);
+    else seen.set(key, 1);
+  }
 
   return {
     workstreams,
