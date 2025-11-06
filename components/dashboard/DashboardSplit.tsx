@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useMemo } from "react";
-import useSWR from "swr";
+import useSWR, { mutate as globalMutate } from "swr";
 import { Card } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
@@ -12,41 +12,48 @@ import { getNarrative, type NarrativeResponse } from "@/lib/client/api";
 import { apiJson } from "@/lib/fetcher";
 import { toArray } from "@/lib/normalize";
 import { getStatusColor } from "@/lib/status";
+import { WORKSTREAMS_KEY } from "@/lib/client/keys";
 import type { Workstream, Risk, ActionItem } from "@/lib/types";
 
 const PROGRAM_ID = process.env.NEXT_PUBLIC_PROGRAM_ID || '';
 
-const fetcher = (url: string) => fetch(url).then((r) => r.json());
+const fetcher = (url: string) => fetch(url, { cache: "no-store" }).then((r) => r.json());
 
-export default function DashboardSplit() {
-  // Fetch workstreams
+interface DashboardSplitProps {
+  programId?: string;
+}
+
+export default function DashboardSplit({ programId = PROGRAM_ID || "default" }: DashboardSplitProps) {
+  const wsKey = WORKSTREAMS_KEY(programId);
+
+  // Fetch workstreams using canonical key
   const { data: workstreamsResp, isLoading: isLoadingWorkstreams } = useSWR<Workstream[] | any>(
-    PROGRAM_ID ? `/api/workstreams?programId=${PROGRAM_ID}` : null,
-    apiJson
+    programId ? wsKey : null,
+    fetcher
   );
 
   // Fetch risks to count per workstream
   const { data: risksResp, isLoading: isLoadingRisks } = useSWR<Risk[] | any>(
-    PROGRAM_ID ? `/api/risks?programId=${PROGRAM_ID}` : null,
-    apiJson
+    programId ? `/api/risks?programId=${encodeURIComponent(programId)}` : null,
+    fetcher
   );
 
   // Fetch actions to count per workstream
   const { data: actionsResp } = useSWR<ActionItem[] | any>(
-    PROGRAM_ID ? `/api/actions?programId=${PROGRAM_ID}` : null,
-    apiJson
+    programId ? `/api/actions?programId=${encodeURIComponent(programId)}` : null,
+    fetcher
   );
 
   // Fetch overall status
   const { data: overallData, isLoading: isLoadingOverall } = useSWR<{ overall: 'GREEN' | 'YELLOW' | 'RED' } | any>(
-    PROGRAM_ID ? `/api/overall?programId=${PROGRAM_ID}` : null,
-    apiJson
+    programId ? `/api/overall?programId=${encodeURIComponent(programId)}` : null,
+    fetcher
   );
 
   // Fetch narrative
   const { data: narrative, isLoading: isLoadingNarrative, mutate: mutateNarrative } = useSWR<NarrativeResponse>(
-    PROGRAM_ID ? '/api/explain-weekly' : null,
-    () => getNarrative()
+    programId ? `/api/explain-weekly?programId=${encodeURIComponent(programId)}` : null,
+    () => getNarrative(programId)
   );
 
   const workstreams = toArray<Workstream>(workstreamsResp);
@@ -73,10 +80,10 @@ export default function DashboardSplit() {
     });
   }, [workstreams, risks, actions]);
 
-  if (!PROGRAM_ID) {
+  if (!programId) {
     return (
       <div className="text-center py-12">
-        <p className="text-slate-800">Please set NEXT_PUBLIC_PROGRAM_ID in your environment variables.</p>
+        <p className="text-slate-800">Program ID is required.</p>
       </div>
     );
   }

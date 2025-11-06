@@ -1,10 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { revalidatePath, revalidateTag } from 'next/cache';
 export const runtime = 'nodejs';
 import { applyUpdateRequestSchema } from '@/lib/zod-schemas';
 import { parseNotesToJSON, naiveParseNotes } from '@/lib/openai';
 import { getAdminClient } from '@/lib/supabase';
 import { calculateOverallStatus } from '@/lib/status';
 import { requireRole } from '@/lib/auth';
+import { WORKSTREAMS_TAG } from '@/lib/client/keys';
+import { matchWorkstreamId } from '@/lib/server/utils/matchWorkstream';
 import type { Workstream } from '@/lib/types';
 
 export async function POST(request: NextRequest) {
@@ -30,6 +33,9 @@ export async function POST(request: NextRequest) {
     }
     const todayISO = new Date().toISOString().split('T')[0]!;
 
+    console.log(`[${routePath}] programId: ${programId}`);
+    console.log(`[${routePath}] notes length: ${notes.length}`);
+
     // Parse notes using OpenAI (with fallback)
     let parsed;
     if (!process.env.OPENAI_API_KEY) {
@@ -44,6 +50,8 @@ export async function POST(request: NextRequest) {
         parsed = naiveParseNotes(notes, todayISO);
       }
     }
+
+    console.log(`[${routePath}] parsed workstreams: ${parsed.workstreams?.length ?? 0}, risks: ${parsed.risks?.length ?? 0}, actions: ${parsed.actions?.length ?? 0}`);
 
     // Insert into updates table
     const { error: updateError } = await supabase
@@ -60,19 +68,27 @@ export async function POST(request: NextRequest) {
       // Continue even if update log fails
     }
 
-    // Upsert workstreams by program_id + lower(name)
-    for (const ws of parsed.workstreams) {
-      const { data: existing, error: lookupError } = await supabase
-        .from('workstreams')
-        .select('id')
-        .eq('program_id', programId)
-        .ilike('name', ws.name)
-        .maybeSingle();
+    // Get all existing workstreams for fuzzy matching
+    const { data: allWorkstreams } = await supabase
+      .from('workstreams')
+      .select('id, name')
+      .eq('program_id', programId);
 
-      if (lookupError) {
-        console.error(`[${routePath}] Workstream lookup error:`, lookupError);
-        // Continue with next workstream
-        continue;
+    const workstreamList = (allWorkstreams || []).map((ws) => ({ id: ws.id, name: ws.name }));
+
+    // Upsert workstreams using fuzzy matching
+    let workstreamUpdateCount = 0;
+    for (const ws of parsed.workstreams) {
+      // Try to find existing workstream using fuzzy match
+      let existingId: string | null = null;
+      
+      // First try exact match (case-insensitive)
+      const exactMatch = workstreamList.find((w) => w.name.toLowerCase() === ws.name.toLowerCase());
+      if (exactMatch) {
+        existingId = exactMatch.id;
+      } else {
+        // Use fuzzy matcher
+        existingId = matchWorkstreamId(ws.name, workstreamList);
       }
 
       const workstreamData = {
@@ -86,23 +102,27 @@ export async function POST(request: NextRequest) {
         updated_at: new Date().toISOString(),
       };
 
-      if (existing) {
+      if (existingId) {
         const { error: updateError } = await supabase
           .from('workstreams')
           .update(workstreamData)
-          .eq('id', existing.id);
+          .eq('id', existingId);
         if (updateError) {
           console.error(`[${routePath}] Workstream update error:`, updateError);
+        } else {
+          workstreamUpdateCount++;
         }
       } else {
         const { error: insertError } = await supabase.from('workstreams').insert(workstreamData);
         if (insertError) {
           console.error(`[${routePath}] Workstream insert error:`, insertError);
+        } else {
+          workstreamUpdateCount++;
         }
       }
     }
 
-    // Get all workstreams for this program to resolve IDs for risks/actions
+    // Refresh workstream list after updates for risk/action mapping
     const { data: workstreams } = await supabase
       .from('workstreams')
       .select('id, name')
@@ -113,11 +133,18 @@ export async function POST(request: NextRequest) {
       workstreamMap.set(ws.name.toLowerCase(), ws.id);
     });
 
-    // Upsert risks by (program_id + lower(title))
+    // Upsert risks by (program_id + lower(title)) with fuzzy workstream matching
+    let riskUpdateCount = 0;
     for (const risk of parsed.risks) {
-      const workstreamId = risk.workstream
-        ? workstreamMap.get(risk.workstream.toLowerCase()) || null
-        : null;
+      let workstreamId: string | null = null;
+      if (risk.workstream) {
+        // Try exact match first
+        workstreamId = workstreamMap.get(risk.workstream.toLowerCase()) || null;
+        // If no exact match, try fuzzy match
+        if (!workstreamId && workstreams) {
+          workstreamId = matchWorkstreamId(risk.workstream, workstreams.map((ws) => ({ id: ws.id, name: ws.name })));
+        }
+      }
 
       const { data: existing } = await supabase
         .from('risks')
@@ -138,17 +165,26 @@ export async function POST(request: NextRequest) {
       };
 
       if (existing) {
-        await supabase.from('risks').update(riskData).eq('id', existing.id);
+        const { error } = await supabase.from('risks').update(riskData).eq('id', existing.id);
+        if (!error) riskUpdateCount++;
       } else {
-        await supabase.from('risks').insert(riskData);
+        const { error } = await supabase.from('risks').insert(riskData);
+        if (!error) riskUpdateCount++;
       }
     }
 
-    // Upsert actions by (program_id + lower(title))
+    // Upsert actions by (program_id + lower(title)) with fuzzy workstream matching
+    let actionUpdateCount = 0;
     for (const action of parsed.actions) {
-      const workstreamId = action.workstream
-        ? workstreamMap.get(action.workstream.toLowerCase()) || null
-        : null;
+      let workstreamId: string | null = null;
+      if (action.workstream) {
+        // Try exact match first
+        workstreamId = workstreamMap.get(action.workstream.toLowerCase()) || null;
+        // If no exact match, try fuzzy match
+        if (!workstreamId && workstreams) {
+          workstreamId = matchWorkstreamId(action.workstream, workstreams.map((ws) => ({ id: ws.id, name: ws.name })));
+        }
+      }
 
       const { data: existing } = await supabase
         .from('actions')
@@ -168,24 +204,39 @@ export async function POST(request: NextRequest) {
       };
 
       if (existing) {
-        await supabase.from('actions').update(actionData).eq('id', existing.id);
+        const { error } = await supabase.from('actions').update(actionData).eq('id', existing.id);
+        if (!error) actionUpdateCount++;
       } else {
-        await supabase.from('actions').insert(actionData);
+        const { error } = await supabase.from('actions').insert(actionData);
+        if (!error) actionUpdateCount++;
       }
     }
 
+    const updatedCount = workstreamUpdateCount + riskUpdateCount + actionUpdateCount;
+    console.log(`[${routePath}] updatedCount: ${updatedCount} (workstreams: ${workstreamUpdateCount}, risks: ${riskUpdateCount}, actions: ${actionUpdateCount})`);
+
     // Compute overall status
-    const { data: allWorkstreams } = await supabase
+    const { data: finalWorkstreams } = await supabase
       .from('workstreams')
       .select('*')
       .eq('program_id', programId);
 
     const overall = calculateOverallStatus(
-      (allWorkstreams as Workstream[]) || []
+      (finalWorkstreams as Workstream[]) || []
     );
+
+    // Revalidate server caches
+    try {
+      revalidateTag(WORKSTREAMS_TAG(programId));
+      revalidatePath('/dashboard');
+      console.log(`[${routePath}] Revalidated cache tag: ${WORKSTREAMS_TAG(programId)}`);
+    } catch (e) {
+      console.warn(`[${routePath}] Revalidation failed:`, e);
+    }
 
     return NextResponse.json({
       ok: true,
+      updatedCount,
       parsed,
       overall,
     });

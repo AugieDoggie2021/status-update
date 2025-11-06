@@ -23,26 +23,24 @@ export type NarrativeResponse = {
   statusSentence?: string; // e.g., "We're still Green because…"
 };
 
-const PROGRAM_ID = process.env.NEXT_PUBLIC_PROGRAM_ID || '';
-
 /**
  * Submit an update (parse and apply notes)
+ * Returns the number of items updated
  */
-export async function submitUpdate(notes: string): Promise<void> {
-  if (!PROGRAM_ID) {
-    throw new Error('PROGRAM_ID not configured');
-  }
-
+export async function submitUpdate(notes: string, programId: string): Promise<{ updatedCount: number }> {
   const res = await fetch('/api/apply-update', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ programId: PROGRAM_ID, notes }),
+    body: JSON.stringify({ programId, notes }),
   });
 
   if (!res.ok) {
-    const error = await res.json().catch(() => ({ error: 'Failed to apply update' }));
-    throw new Error(error.error || 'Failed to apply update');
+    const errorText = await res.text().catch(() => 'Failed to apply update');
+    throw new Error(errorText || 'Failed to apply update');
   }
+
+  const data = await res.json();
+  return { updatedCount: data.updatedCount ?? 0 };
 }
 
 /**
@@ -50,16 +48,12 @@ export async function submitUpdate(notes: string): Promise<void> {
  * Note: This endpoint requires OWNER or CONTRIBUTOR role.
  * Viewers will get an empty summary gracefully.
  */
-export async function getNarrative(): Promise<NarrativeResponse> {
-  if (!PROGRAM_ID) {
-    return { summary: '' };
-  }
-
+export async function getNarrative(programId: string): Promise<NarrativeResponse> {
   try {
     const res = await fetch('/api/explain-weekly', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ programId: PROGRAM_ID }),
+      body: JSON.stringify({ programId }),
     });
 
     if (!res.ok) {

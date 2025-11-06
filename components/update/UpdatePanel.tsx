@@ -6,10 +6,18 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
+import { mutate } from "swr";
 import { submitUpdate } from "@/lib/client/api";
 import { useRole } from "@/lib/client/role";
+import { WORKSTREAMS_KEY } from "@/lib/client/keys";
 
-export default function UpdatePanel() {
+const PROGRAM_ID = process.env.NEXT_PUBLIC_PROGRAM_ID || '';
+
+interface UpdatePanelProps {
+  programId?: string;
+}
+
+export default function UpdatePanel({ programId = PROGRAM_ID || "default" }: UpdatePanelProps) {
   const [notes, setNotes] = useState("");
   const [loading, setLoading] = useState(false);
   const router = useRouter();
@@ -33,13 +41,18 @@ export default function UpdatePanel() {
 
     try {
       setLoading(true);
-      await submitUpdate(notes.trim());
-      toast.success("Update applied", {
-        description: "Your changes were saved.",
-      });
+      const { updatedCount } = await submitUpdate(notes.trim(), programId);
       
-      // Navigate to dashboard - SWR will automatically refetch data
+      toast.success("Update applied", {
+        description: `Updated ${updatedCount} item(s).`,
+      });
+
+      // 1) Force SWR to refetch the dashboard data
+      await mutate(WORKSTREAMS_KEY(programId));
+
+      // 2) Navigate and ensure server components refresh
       router.push("/dashboard");
+      router.refresh();
     } catch (e: any) {
       console.error(e);
       toast.error("Failed to submit", {

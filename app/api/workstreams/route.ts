@@ -63,7 +63,14 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    return NextResponse.json(data || []);
+    console.log(`[${routePath}] programId: ${programId}, rows: ${data?.length ?? 0}`);
+
+    return new Response(JSON.stringify(data || []), {
+      headers: {
+        'Content-Type': 'application/json',
+        'Cache-Control': 'no-store',
+      },
+    });
   } catch (error) {
     console.error(`[${routePath}] Unexpected error:`, error instanceof Error ? error.message : 'Unknown');
     return NextResponse.json(
