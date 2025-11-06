@@ -554,7 +554,7 @@ export async function parseNotesSmart({
 
     const tool = chat.choices[0]?.message?.tool_calls?.[0];
 
-    if (!tool?.function?.arguments) {
+    if (!tool || tool.type !== 'function' || !tool.function?.arguments) {
       console.warn('[parseNotesSmart] Missing tool args; falling back to naive.');
       return parseNaive(notes);
     }
