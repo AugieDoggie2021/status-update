@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { revalidatePath, revalidateTag } from 'next/cache';
+import { revalidatePath } from 'next/cache';
 export const runtime = 'nodejs';
 import { applyUpdateRequestSchema } from '@/lib/zod-schemas';
 import { parseNotesToJSON, naiveParseNotes, type Action } from '@/lib/openai';
@@ -7,7 +7,6 @@ import { getAdminClient } from '@/lib/supabase';
 import { calculateOverallStatus } from '@/lib/status';
 import { requireRole } from '@/lib/auth';
 import { matchWorkstreamId } from '@/lib/server/utils/matchWorkstream';
-import { WORKSTREAMS_TAG } from '@/lib/client/keys';
 import type { Workstream } from '@/lib/types';
 
 /**
