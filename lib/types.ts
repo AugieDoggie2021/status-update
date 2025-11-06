@@ -100,6 +100,9 @@ export type ParsedUpdate = {
     status: ActionStatus;
     notes: string | null;
   }>;
+  deletions?: {
+    workstreams?: string[]; // Workstream names to delete
+  };
   overall_status_rule_hint?: string | null;
 };
 

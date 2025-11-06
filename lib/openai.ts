@@ -23,11 +23,12 @@ Rules:
 1. Extract workstream updates: name, status (GREEN/YELLOW/RED), percent_complete (0-100), summary, next_milestone, next_milestone_due (YYYY-MM-DD or null)
 2. Extract risks: workstream (can be null), title, severity (LOW/MEDIUM/HIGH), status (OPEN/MITIGATED/CLOSED), owner, due_date, notes
 3. Extract actions: workstream (can be null), title, owner, due_date, status (OPEN/IN_PROGRESS/DONE), notes
-4. Infer statuses from keywords: "slipped", "delayed", "blocker", "at risk" → YELLOW/RED; "on track", "complete" → GREEN
-5. Map status synonyms: "amber" → YELLOW; "on-track" → GREEN; "at risk" → YELLOW
-6. Normalize relative dates to ISO format (YYYY-MM-DD) using today's date: ${todayISO}
-7. Default statuses: workstream = GREEN if not specified, risk = OPEN, action = OPEN
-8. Return null for optional fields if not mentioned
+4. Extract deletions: If user says "delete/remove <name> workstream" or "delete the workstream named X", add the workstream name to deletions.workstreams array
+5. Infer statuses from keywords: "slipped", "delayed", "blocker", "at risk" → YELLOW/RED; "on track", "complete" → GREEN
+6. Map status synonyms: "amber" → YELLOW; "on-track" → GREEN; "at risk" → YELLOW
+7. Normalize relative dates to ISO format (YYYY-MM-DD) using today's date: ${todayISO}
+8. Default statuses: workstream = GREEN if not specified, risk = OPEN, action = OPEN
+9. Return null for optional fields if not mentioned
 
 Return ONLY valid JSON matching the schema.`;
 
@@ -103,6 +104,16 @@ Return ONLY valid JSON matching the schema.`;
                   required: ['workstream', 'title', 'owner', 'due_date', 'status', 'notes'],
                   additionalProperties: false,
                 },
+              },
+              deletions: {
+                type: 'object',
+                properties: {
+                  workstreams: {
+                    type: 'array',
+                    items: { type: 'string' },
+                  },
+                },
+                additionalProperties: false,
               },
               overall_status_rule_hint: { type: ['string', 'null'] },
             },
@@ -182,6 +193,8 @@ export function naiveParseNotes(notes: string, todayISO: string): ParsedUpdate {
     next_milestone_due: string | null;
   }[] = [];
 
+  const deletions: { workstreams: string[] } = { workstreams: [] };
+
   // A) Support "Name: details" (existing behavior)
   const colonMatches = text.match(/([A-Za-z0-9&/\-\s]+):\s*([^.;]+)(?=[.;]|$)/g) || [];
   for (const m of colonMatches) {
@@ -201,7 +214,33 @@ export function naiveParseNotes(notes: string, todayISO: string): ParsedUpdate {
     });
   }
 
-  // B) Verb-led commands: "update/set/change <NAME> workstream ... 47% ... (red|yellow|amber|green)"
+  // B) Delete/Remove commands: "delete/remove <NAME> workstream"
+  const deletePatterns = [
+    // "delete the workstream named X" or "delete the workstream called X"
+    /\b(delete|remove)\s+(?:the\s+)?workstream\s+(?:in\s+[^]*?\s+)?(?:named|called)\s+["']?([A-Za-z0-9&/\-\s]+)["']?/i,
+    // "delete the workstream X" (name at end)
+    /\b(delete|remove)\s+(?:the\s+)?workstream\s+["']?([A-Za-z0-9&/\-\s]+)["']?$/i,
+    // "delete X workstream"
+    /\b(delete|remove)\s+([A-Za-z0-9&/\-\s]+)\s+workstream/i,
+    // "delete workstream X"
+    /\b(delete|remove)\s+workstream\s+(?:named\s+|called\s+)?["']?([A-Za-z0-9&/\-\s]+)["']?/i,
+  ];
+
+  for (const pattern of deletePatterns) {
+    const match = text.match(pattern);
+    if (match) {
+      // Try match[2] first (name), then match[1] (verb), but skip if it's a verb
+      const name = (match[2] || (match[1] && !['delete', 'remove'].includes(match[1].toLowerCase()) ? match[1] : '') || '').trim();
+      // Filter out common stopwords
+      const stopwords = ['delete', 'remove', 'the', 'workstream', 'named', 'called', 'in', 'top', 'left', 'hand', 'corner'];
+      if (name && !stopwords.includes(name.toLowerCase()) && name.length > 1) {
+        deletions.workstreams.push(name);
+        break; // Only match once per sentence
+      }
+    }
+  }
+
+  // C) Verb-led commands: "update/set/change <NAME> workstream ... 47% ... (red|yellow|amber|green)"
   const sentences = text.split(/[.;]\s*/).filter(Boolean);
   for (const s of sentences) {
     const sent = s.trim();
@@ -262,6 +301,20 @@ export function naiveParseNotes(notes: string, todayISO: string): ParsedUpdate {
     else seen.add(key);
   }
 
-  return { workstreams, risks: [], actions: [] };
+  // Deduplicate deletions
+  const deletedSeen = new Set<string>();
+  deletions.workstreams = deletions.workstreams.filter(name => {
+    const key = norm(name);
+    if (deletedSeen.has(key)) return false;
+    deletedSeen.add(key);
+    return true;
+  });
+
+  return { 
+    workstreams, 
+    risks: [], 
+    actions: [],
+    deletions: deletions.workstreams.length > 0 ? deletions : undefined,
+  };
 }
 

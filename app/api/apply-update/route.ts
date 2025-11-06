@@ -50,12 +50,13 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    console.log(`[${routePath}] parsed workstreams: ${parsed.workstreams?.length ?? 0}, risks: ${parsed.risks?.length ?? 0}, actions: ${parsed.actions?.length ?? 0}`);
+    console.log(`[${routePath}] parsed workstreams: ${parsed.workstreams?.length ?? 0}, risks: ${parsed.risks?.length ?? 0}, actions: ${parsed.actions?.length ?? 0}, deletions: ${parsed.deletions?.workstreams?.length ?? 0}`);
 
-    // Fail loudly if nothing was parsed
+    // Fail loudly if nothing was parsed (including deletions)
     if ((parsed.workstreams?.length ?? 0) === 0 &&
         (parsed.risks?.length ?? 0) === 0 &&
-        (parsed.actions?.length ?? 0) === 0) {
+        (parsed.actions?.length ?? 0) === 0 &&
+        (parsed.deletions?.workstreams?.length ?? 0) === 0) {
       console.warn(`[${routePath}] No actionable items parsed from notes.`);
       return NextResponse.json(
         { ok: false, error: 'No workstreams recognized. Try "<Workstream Name>: now at 70%, status Red" or include the word "workstream".' },
@@ -86,6 +87,44 @@ export async function POST(request: NextRequest) {
       .is('deleted_at', null);
 
     const workstreamList = (allWorkstreams || []).map((ws) => ({ id: ws.id, name: ws.name }));
+
+    // Process deletions FIRST (before updates)
+    let workstreamDeleteCount = 0;
+    const deleteUnmatched: string[] = [];
+    if (parsed.deletions?.workstreams && parsed.deletions.workstreams.length > 0) {
+      console.log(`[${routePath}] Processing ${parsed.deletions.workstreams.length} deletion(s)`);
+      for (const deleteName of parsed.deletions.workstreams) {
+        // Try to find workstream using exact or fuzzy match
+        let existingId: string | null = null;
+        const exactMatch = workstreamList.find((w) => w.name.toLowerCase() === deleteName.toLowerCase());
+        existingId = exactMatch ? exactMatch.id : matchWorkstreamId(deleteName, workstreamList);
+
+        if (existingId) {
+          // Soft delete: set deleted_at timestamp
+          const { error: deleteError } = await supabase
+            .from('workstreams')
+            .update({
+              deleted_at: new Date().toISOString(),
+              updated_at: new Date().toISOString(),
+            })
+            .eq('id', existingId)
+            .eq('program_id', programId);
+
+          if (deleteError) {
+            console.error(`[${routePath}] Workstream delete error:`, deleteError);
+          } else {
+            workstreamDeleteCount++;
+            console.log(`[${routePath}] Deleted workstream: "${deleteName}" (id: ${existingId})`);
+            // Remove from workstreamList so it won't be matched in updates
+            const index = workstreamList.findIndex((w) => w.id === existingId);
+            if (index >= 0) workstreamList.splice(index, 1);
+          }
+        } else {
+          deleteUnmatched.push(deleteName);
+          console.warn(`[${routePath}] No match found for deletion: "${deleteName}"`);
+        }
+      }
+    }
 
     // Update-only mode: do not create new workstreams unless explicitly allowed
     const allowCreate = false;
@@ -137,11 +176,21 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Fail loudly if nothing was updated and there are unmatched workstreams
-    if (workstreamUpdateCount === 0 && unmatched.length > 0) {
+    // Fail loudly if nothing was updated/deleted and there are unmatched workstreams
+    if (workstreamUpdateCount === 0 && workstreamDeleteCount === 0 && unmatched.length > 0 && deleteUnmatched.length > 0) {
       const candidates = (workstreamList || []).map(w => w.name).sort();
+      const allUnmatched = [...unmatched, ...deleteUnmatched];
       return NextResponse.json(
-        { ok: false, error: `No matching workstream found for: ${unmatched.join(', ')}. Try one of: ${candidates.join(' • ')}` },
+        { ok: false, error: `No matching workstream found for: ${allUnmatched.join(', ')}. Try one of: ${candidates.join(' • ')}` },
+        { status: 400 }
+      );
+    }
+
+    // If only deletions failed, still return error
+    if (workstreamDeleteCount === 0 && deleteUnmatched.length > 0 && workstreamUpdateCount === 0) {
+      const candidates = (allWorkstreams || []).map(w => w.name).sort();
+      return NextResponse.json(
+        { ok: false, error: `No matching workstream found to delete: ${deleteUnmatched.join(', ')}. Try one of: ${candidates.join(' • ')}` },
         { status: 400 }
       );
     }
@@ -237,8 +286,8 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const updatedCount = workstreamUpdateCount + riskUpdateCount + actionUpdateCount;
-    console.log(`[${routePath}] updatedCount: ${updatedCount} (workstreams: ${workstreamUpdateCount}, risks: ${riskUpdateCount}, actions: ${actionUpdateCount})`);
+    const updatedCount = workstreamUpdateCount + workstreamDeleteCount + riskUpdateCount + actionUpdateCount;
+    console.log(`[${routePath}] updatedCount: ${updatedCount} (workstreams: ${workstreamUpdateCount}, deleted: ${workstreamDeleteCount}, risks: ${riskUpdateCount}, actions: ${actionUpdateCount})`);
 
     // Compute overall status
     const { data: finalWorkstreams } = await supabase
