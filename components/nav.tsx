@@ -8,12 +8,18 @@ import { SignOutButton } from './SignOutButton';
 
 const PROGRAM_ID = process.env.NEXT_PUBLIC_PROGRAM_ID || '';
 
-const navItems = [
+type NavItem = {
+  href: string;
+  label: string;
+  requiresWrite?: boolean;
+};
+
+const navItems: NavItem[] = [
   { href: '/dashboard', label: 'Dashboard' },
-  { href: '/update', label: 'Update' },
-  { href: '/workstreams', label: 'Workstreams' },
-  { href: '/risks', label: 'Risks' },
-  { href: '/actions', label: 'Actions' },
+  { href: '/update', label: 'Update', requiresWrite: true },
+  { href: '/workstreams', label: 'Workstreams', requiresWrite: true },
+  { href: '/risks', label: 'Risks', requiresWrite: true },
+  { href: '/actions', label: 'Actions', requiresWrite: true },
   { href: '/report', label: 'Report' },
 ];
 
