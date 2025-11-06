@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import useSWR from 'swr';
 import { SignOutButton } from './SignOutButton';
+import { ImpersonationBanner } from './ImpersonationBanner';
 
 const PROGRAM_ID = process.env.NEXT_PUBLIC_PROGRAM_ID || '';
 
@@ -35,7 +36,9 @@ export function Nav() {
   const canWrite = role === 'OWNER' || role === 'CONTRIBUTOR';
 
   return (
-    <nav className="border-b backdrop-blur-xl bg-gradient-to-r from-slate-50 via-white to-slate-50 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900 border-b-slate-200/50 dark:border-b-slate-700/50">
+    <>
+      <ImpersonationBanner />
+      <nav className="border-b backdrop-blur-xl bg-gradient-to-r from-slate-50 via-white to-slate-50 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900 border-b-slate-200/50 dark:border-b-slate-700/50">
       <div className="container mx-auto px-4">
         <div className="flex h-16 items-center justify-between">
           <h1 className="text-2xl font-display font-bold tracking-tight bg-gradient-to-br from-emerald-600 to-sky-600 bg-clip-text text-transparent">
@@ -80,6 +83,7 @@ export function Nav() {
         </div>
       </div>
     </nav>
+    </>
   );
 }
 

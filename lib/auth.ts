@@ -1,5 +1,10 @@
 import { createClient } from '@/lib/supabase/server';
 import { getAdminClient } from './supabase';
+import { cookies } from 'next/headers';
+
+// Impersonation cookie names
+const IMPERSONATION_COOKIE = 'impersonate_role';
+const IMPERSONATION_PROGRAM_COOKIE = 'impersonate_program_id';
 
 /**
  * Get the current authenticated user session (server-side)
@@ -39,10 +44,43 @@ export async function requireAuth() {
 }
 
 /**
+ * Get impersonated role from cookie (if any)
+ * Returns null if not impersonating
+ */
+async function getImpersonatedRole(programId: string): Promise<'OWNER' | 'CONTRIBUTOR' | 'VIEWER' | null> {
+  try {
+    const cookieStore = await cookies();
+    const impersonateProgramId = cookieStore.get(IMPERSONATION_PROGRAM_COOKIE)?.value;
+    const impersonateRole = cookieStore.get(IMPERSONATION_COOKIE)?.value;
+
+    // Only return impersonated role if it's for the current program
+    if (impersonateProgramId === programId && impersonateRole) {
+      const role = impersonateRole.toUpperCase();
+      if (role === 'OWNER' || role === 'CONTRIBUTOR' || role === 'VIEWER') {
+        return role as 'OWNER' | 'CONTRIBUTOR' | 'VIEWER';
+      }
+    }
+    return null;
+  } catch (error) {
+    // Cookie access might fail in some contexts, ignore
+    return null;
+  }
+}
+
+/**
  * Get user's role for a specific program
  * Returns null if user is not a member
+ * Checks impersonation first if enabled
  */
 export async function getRole(programId: string): Promise<'OWNER' | 'CONTRIBUTOR' | 'VIEWER' | null> {
+  // Check for impersonation first
+  const impersonatedRole = await getImpersonatedRole(programId);
+  if (impersonatedRole) {
+    console.log(`[getRole] Impersonating as ${impersonatedRole} for program ${programId}`);
+    return impersonatedRole;
+  }
+
+  // Normal role lookup
   const session = await getServerSession();
   if (!session) {
     console.warn(`[getRole] No session for programId: ${programId}`);
@@ -96,5 +134,34 @@ export async function requireMembership(programId: string): Promise<void> {
   if (!role) {
     throw new Error('FORBIDDEN');
   }
+}
+
+/**
+ * Check if user is currently impersonating
+ */
+export async function isImpersonating(programId: string): Promise<boolean> {
+  const role = await getImpersonatedRole(programId);
+  return role !== null;
+}
+
+/**
+ * Get the user's real role (ignoring impersonation)
+ * Used to verify user is OWNER before allowing impersonation
+ */
+export async function getRealRole(programId: string): Promise<'OWNER' | 'CONTRIBUTOR' | 'VIEWER' | null> {
+  const session = await getServerSession();
+  if (!session) {
+    return null;
+  }
+
+  const supabase = getAdminClient();
+  const { data } = await supabase
+    .from('program_memberships')
+    .select('role')
+    .eq('program_id', programId)
+    .eq('user_id', session.user.id)
+    .maybeSingle();
+
+  return data?.role as 'OWNER' | 'CONTRIBUTOR' | 'VIEWER' | null;
 }
 

@@ -29,8 +29,10 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { toast } from 'sonner';
-import { MoreVertical, UserPlus, Trash2, Shield, User, Eye } from 'lucide-react';
+import { MoreVertical, UserPlus, Trash2, Shield, User, Eye, TestTube } from 'lucide-react';
 import type { Role } from '@/lib/role';
+import { useImpersonation, startImpersonating, stopImpersonating } from '@/lib/client/impersonate';
+import { ImpersonationBanner } from '@/components/ImpersonationBanner';
 
 const PROGRAM_ID = process.env.NEXT_PUBLIC_PROGRAM_ID || '';
 
@@ -60,7 +62,18 @@ export default function MembersPage() {
     fetcher
   );
 
-  const isOwner = roleData?.role === 'OWNER';
+  const { isImpersonating, impersonatedRole } = useImpersonation();
+  // Check real role - if impersonating, we need to check if user is actually owner
+  // For now, we'll show controls if they're owner OR if they're impersonating (so they can stop)
+  const isOwner = roleData?.role === 'OWNER' || isImpersonating;
+
+  const handleImpersonate = async (role: 'CONTRIBUTOR' | 'VIEWER') => {
+    try {
+      await startImpersonating(role);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to start impersonation');
+    }
+  };
 
   const members = membersData?.members || [];
 
@@ -140,7 +153,9 @@ export default function MembersPage() {
     }
   };
 
-  if (!isOwner) {
+  // Allow access if user is owner OR if they're impersonating (so they can stop impersonation)
+  // Note: API routes will still enforce real OWNER role for member management operations
+  if (!isOwner && !isImpersonating) {
     return (
       <div className="text-center py-12">
         <p className="text-muted-foreground">Access denied. Owner role required.</p>
@@ -150,6 +165,8 @@ export default function MembersPage() {
 
   return (
     <div className="space-y-6">
+      <ImpersonationBanner />
+      
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-3xl font-display font-bold tracking-tight">Members</h2>
@@ -160,6 +177,54 @@ export default function MembersPage() {
           Invite Member
         </Button>
       </div>
+
+      {/* Impersonation Testing Section - Owner Only */}
+      {isOwner && (
+        <Card className="backdrop-blur-xl bg-white/50 dark:bg-slate-900/40 border border-purple-200 dark:border-purple-800 rounded-2xl shadow-xl">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <TestTube className="h-5 w-5" />
+              Test as Different Role
+            </CardTitle>
+            <CardDescription>
+              Impersonate as CONTRIBUTOR or VIEWER to test the user experience
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="flex gap-2">
+              {isImpersonating ? (
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-muted-foreground">
+                    Currently impersonating as: <strong>{impersonatedRole}</strong>
+                  </span>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => stopImpersonating()}
+                  >
+                    Stop Impersonating
+                  </Button>
+                </div>
+              ) : (
+                <>
+                  <Button
+                    variant="outline"
+                    onClick={() => handleImpersonate('CONTRIBUTOR')}
+                  >
+                    Test as Contributor
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={() => handleImpersonate('VIEWER')}
+                  >
+                    Test as Viewer
+                  </Button>
+                </>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       <Card className="backdrop-blur-xl bg-white/50 dark:bg-slate-900/40 border border-white/20 rounded-2xl shadow-xl">
         <CardHeader>
