@@ -35,23 +35,30 @@ export async function submitUpdate(notes: string, programId: string): Promise<{ 
   });
 
   if (!res.ok) {
-    // Try to parse JSON error response
-    const contentType = res.headers.get('content-type');
-    if (contentType?.includes('application/json')) {
-      try {
-        const json = await res.json();
-        if (json.error) {
-          throw new Error(json.error);
+    // Read response body as text first (can only read once)
+    let errorMessage = 'Failed to apply update';
+    
+    try {
+      const text = await res.text();
+      if (text) {
+        // Try to parse as JSON
+        try {
+          const json = JSON.parse(text);
+          if (json.error) {
+            errorMessage = json.error;
+          } else {
+            errorMessage = text;
+          }
+        } catch {
+          // Not JSON, use text as error message
+          errorMessage = text;
         }
-      } catch (parseError) {
-        // If JSON parse fails, fall through to generic error
       }
-    } else {
-      // Try text if not JSON
-      const text = await res.text().catch(() => '');
-      throw new Error(text || 'Failed to apply update');
+    } catch {
+      // If reading fails, use default error message
     }
-    throw new Error('Failed to apply update');
+    
+    throw new Error(errorMessage);
   }
 
   const data = await res.json();
