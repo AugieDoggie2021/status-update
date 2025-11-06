@@ -14,7 +14,7 @@ export default async function DashboardPage() {
   }
 
   return (
-    <main className="p-4 bg-gradient-to-br from-slate-50 via-white to-slate-50/50 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 min-h-screen">
+    <main className="p-4 bg-gradient-to-br from-slate-50 via-white to-slate-50/50 min-h-screen overflow-x-hidden">
       <DashboardSplit />
     </main>
   );

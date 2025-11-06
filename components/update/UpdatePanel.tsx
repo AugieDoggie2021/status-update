@@ -51,20 +51,20 @@ export default function UpdatePanel() {
   };
 
   return (
-    <div className="mx-auto max-w-3xl px-4 py-6">
-      <Card className="p-4 space-y-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700">
+    <div className="mx-auto max-w-3xl px-4 py-4">
+      <Card className="p-4 space-y-4 bg-gradient-to-br from-slate-100 to-slate-200 border border-slate-300 shadow-sm">
         <CardHeader>
-          <CardTitle className="text-xl font-semibold text-slate-900 dark:text-slate-100">Update</CardTitle>
+          <CardTitle className="text-xl font-semibold text-slate-900">Update</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-2">
-            <p className="text-sm text-muted-foreground">
+            <p className="text-sm text-slate-800">
               Write in plain English. For example: "This week we met with A, B, C to solve X, Y, Z. We hit a blocker on
               auth tokens; plan is to rotate keys Monday. Delivered the dashboard v2. Next milestone is Nov 15. We're still Green."
             </p>
           </div>
           <Textarea
-            className="min-h-[200px] font-mono text-sm resize-none"
+            className="min-h-[200px] font-mono text-sm resize-none bg-white text-slate-900 border-slate-300"
             placeholder="What changed, blockers, delivered, next milestone, questions…"
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
@@ -75,7 +75,7 @@ export default function UpdatePanel() {
               {loading ? "Submitting…" : "Submit"}
             </Button>
             {!canSubmit && (
-              <span className="text-xs text-muted-foreground">
+              <span className="text-xs text-slate-700">
                 Viewer role: ask an Owner/Contributor to submit.
               </span>
             )}
