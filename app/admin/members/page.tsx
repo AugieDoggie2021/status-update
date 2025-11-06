@@ -32,7 +32,6 @@ import { toast } from 'sonner';
 import { MoreVertical, UserPlus, Trash2, Shield, User, Eye, TestTube } from 'lucide-react';
 import type { Role } from '@/lib/role';
 import { useImpersonation, startImpersonating, stopImpersonating } from '@/lib/client/impersonate';
-import { ImpersonationBanner } from '@/components/ImpersonationBanner';
 
 const PROGRAM_ID = process.env.NEXT_PUBLIC_PROGRAM_ID || '';
 
@@ -165,8 +164,6 @@ export default function MembersPage() {
 
   return (
     <div className="space-y-6">
-      <ImpersonationBanner />
-      
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-3xl font-display font-bold tracking-tight">Members</h2>
