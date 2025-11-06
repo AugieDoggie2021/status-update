@@ -45,12 +45,21 @@ export const parsedUpdateSchema = z.object({
 
 export const parseRequestSchema = z.object({
   notes: z.string().min(1),
+  programId: z.string().optional(),
 });
 
 export const applyUpdateRequestSchema = z.object({
-  programId: z.string().uuid(),
-  notes: z.string().min(1),
+  programId: z.string(), // Allow non-UUID for backward compatibility
+  notes: z.string().min(1).optional(), // Optional for new flow
   appliedBy: z.string().optional(),
+  actions: z.array(z.object({
+    intent: z.enum(['update', 'delete']),
+    name: z.string().optional(),
+    workstreamId: z.string().optional(), // UUID validation happens in applyResolvedActions
+    percent: z.number().int().min(0).max(100).optional(),
+    status: statusSchema.optional(),
+    next_milestone: z.string().nullable().optional(),
+  })).optional(), // New: accept resolved actions
 });
 
 export const explainWeeklyRequestSchema = z.object({

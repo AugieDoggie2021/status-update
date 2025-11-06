@@ -7,8 +7,10 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test": "jest",
-    "test:watch": "jest --watch",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:jest": "jest",
+    "test:jest:watch": "jest --watch",
     "smoke:local": "node scripts/smoke-tests.js",
     "seed:program": "node scripts/seedProgram.mjs",
     "scan:runtime": "node scripts/repo-scan.mjs",
@@ -67,6 +69,7 @@
     "ts-jest": "^29.4.5",
     "ts-node": "^10.9.2",
     "tsx": "^4.19.2",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "^2.0.0"
   }
 }

@@ -1,6 +1,23 @@
 import OpenAI from 'openai';
 import type { ParsedUpdate } from './types';
 
+/**
+ * Action type for two-stage parse → confirm → apply flow
+ */
+export type Action = {
+  intent: 'update' | 'delete' | 'create' | 'noop';
+  name?: string; // as typed by user
+  workstreamId?: string; // when resolved
+  percent?: number;
+  status?: 'GREEN' | 'YELLOW' | 'RED';
+  next_milestone?: string | null;
+};
+
+export type ParseResult = {
+  actions: Action[];
+  raw_text: string;
+};
+
 export function getOpenAI() {
   return new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 }
@@ -159,6 +176,17 @@ const STATUS_WORDS: Record<string, 'GREEN'|'YELLOW'|'RED'> = {
   'at risk': 'YELLOW',
   yellow: 'YELLOW',
   amber: 'YELLOW',
+  orange: 'YELLOW',
+};
+
+const STATUS_MAP: Record<string, 'GREEN'|'YELLOW'|'RED'> = {
+  green: 'GREEN',
+  'on track': 'GREEN',
+  yellow: 'YELLOW',
+  amber: 'YELLOW',
+  orange: 'YELLOW',
+  'at risk': 'YELLOW',
+  red: 'RED',
 };
 
 function norm(s: string) {
@@ -316,5 +344,225 @@ export function naiveParseNotes(notes: string, todayISO: string): ParsedUpdate {
     actions: [],
     deletions: deletions.workstreams.length > 0 ? deletions : undefined,
   };
+}
+
+/**
+ * Parse notes into actions (for two-stage flow)
+ * Supports commands WITHOUT the word "workstream"
+ * Exported for testing
+ */
+export function parseNaive(text: string): ParseResult {
+  const actions: Action[] = [];
+  const sents = text.replace(/\s+/g, ' ').trim().split(/[.;]\s*/).filter(Boolean);
+
+  for (const sent of sents) {
+    const n = sent.toLowerCase();
+
+    // DELETE patterns
+    if (/\b(delete|remove)\b/.test(n)) {
+      // quoted or unquoted names
+      const quoted = [...sent.matchAll(/"([^"]+)"|'([^']+)'/g)].map((m) => (m[1] || m[2]).trim());
+      if (quoted.length) {
+        quoted.forEach((name) => actions.push({ intent: 'delete', name }));
+      } else {
+        const m = sent.match(/\b(delete|remove)\s+(?:the\s+)?(.+?)(?:\s+workstream)?$/i);
+        if (m) {
+          const name = m[2].trim();
+          // Filter out stopwords
+          const stopwords = ['delete', 'remove', 'the', 'workstream', 'named', 'called'];
+          if (!stopwords.includes(name.toLowerCase()) && name.length > 1) {
+            actions.push({ intent: 'delete', name });
+          }
+        }
+      }
+      continue;
+    }
+
+    // UPDATE patterns (no need to say "workstream")
+    // ex: "Update Data Pipeline Ingest to green at 70%"
+    let m = sent.match(/\b(update|set|change|mark|make)\s+(?:the\s+)?(.+?)\s+(?:workstream\s+)?(?:to\s+)?(green|yellow|amber|red|orange)\b.*?(\d{1,3})\s*%?/i);
+    if (m) {
+      const name = m[2].trim();
+      const statusWord = m[3].toLowerCase();
+      const percent = Math.min(100, parseInt(m[4], 10));
+      const stopwords = ['update', 'set', 'change', 'mark', 'make', 'the', 'workstream', 'to'];
+      if (!stopwords.includes(name.toLowerCase()) && name.length > 1) {
+        actions.push({
+          intent: 'update',
+          name,
+          status: STATUS_MAP[statusWord] || 'GREEN',
+          percent,
+        });
+      }
+      continue;
+    }
+
+    // ex: "Update Data Pipeline Ingest to green"
+    m = sent.match(/\b(update|set|change|mark|make)\s+(?:the\s+)?(.+?)\s+(?:workstream\s+)?(?:to\s+)?(green|yellow|amber|red|orange)\b/i);
+    if (m) {
+      const name = m[2].trim();
+      const statusWord = m[3].toLowerCase();
+      const stopwords = ['update', 'set', 'change', 'mark', 'make', 'the', 'workstream', 'to'];
+      if (!stopwords.includes(name.toLowerCase()) && name.length > 1) {
+        actions.push({
+          intent: 'update',
+          name,
+          status: STATUS_MAP[statusWord] || 'GREEN',
+        });
+      }
+      continue;
+    }
+
+    // ex: "Set Modeling & Analytics 47%"
+    m = sent.match(/\b(update|set|change|mark|make)\s+(?:the\s+)?(.+?)\s+(?:workstream\s+)?(\d{1,3})\s*%/i);
+    if (m) {
+      const name = m[2].trim();
+      const percent = Math.min(100, parseInt(m[3], 10));
+      const stopwords = ['update', 'set', 'change', 'mark', 'make', 'the', 'workstream'];
+      if (!stopwords.includes(name.toLowerCase()) && name.length > 1) {
+        actions.push({
+          intent: 'update',
+          name,
+          percent,
+        });
+      }
+      continue;
+    }
+
+    // ex: "<name> to 47% and red"
+    m = sent.match(/^(.+?)\s+(?:workstream\s+)?(?:is\s+now\s+|to\s+|now\s+at\s+)?(\d{1,3})\s*%.*?\b(green|yellow|amber|red|orange)\b/i);
+    if (m) {
+      const name = m[1].trim();
+      const percent = Math.min(100, parseInt(m[2], 10));
+      const statusWord = m[3].toLowerCase();
+      const stopwords = ['workstream', 'is', 'now', 'to', 'at'];
+      if (!stopwords.includes(name.toLowerCase()) && name.length > 1) {
+        actions.push({
+          intent: 'update',
+          name,
+          percent,
+          status: STATUS_MAP[statusWord] || 'GREEN',
+        });
+      }
+      continue;
+    }
+
+    // ex: "<name> to red"
+    m = sent.match(/^(.+?)\s+(?:workstream\s+)?(?:to\s+|is\s+now\s+)?(green|yellow|amber|red|orange)\b/i);
+    if (m) {
+      const name = m[1].trim();
+      const statusWord = m[2].toLowerCase();
+      const stopwords = ['workstream', 'to', 'is', 'now'];
+      if (!stopwords.includes(name.toLowerCase()) && name.length > 1) {
+        actions.push({
+          intent: 'update',
+          name,
+          status: STATUS_MAP[statusWord] || 'GREEN',
+        });
+      }
+      continue;
+    }
+  }
+
+  // Dedup last-write-wins per name
+  const seen = new Set<string>();
+  for (let i = actions.length - 1; i >= 0; i--) {
+    const k = (actions[i].intent + ':' + (actions[i].name || actions[i].workstreamId || '')).toLowerCase();
+    if (seen.has(k)) actions.splice(i, 1);
+    else seen.add(k);
+  }
+
+  return { actions, raw_text: text };
+}
+
+const MODEL = process.env.OPENAI_MODEL || 'gpt-4o-mini';
+
+const parseTool = {
+  type: 'function' as const,
+  function: {
+    name: 'emit_actions',
+    description: "Return normalized actions parsed from the user's update text.",
+    parameters: {
+      type: 'object',
+      properties: {
+        actions: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              intent: { type: 'string', enum: ['update', 'delete', 'create', 'noop'] },
+              name: { type: 'string', description: 'User-typed name (unresolved)' },
+              status: { type: 'string', enum: ['GREEN', 'YELLOW', 'RED'], nullable: true },
+              percent: { type: 'number', minimum: 0, maximum: 100, nullable: true },
+              next_milestone: { type: 'string', nullable: true },
+            },
+            required: ['intent'],
+            additionalProperties: false,
+          },
+        },
+        raw_text: { type: 'string' },
+      },
+      required: ['actions', 'raw_text'],
+    },
+  },
+} as const;
+
+/**
+ * Smart parser that uses LLM when available, falls back to naive parser
+ * Returns actions suitable for two-stage flow
+ */
+export async function parseNotesSmart({
+  notes,
+  programId,
+}: {
+  notes: string;
+  programId: string;
+}): Promise<ParseResult> {
+  // Log mode to verify in prod logs whether LLM path is active
+  const mode = process.env.OPENAI_API_KEY ? 'openai' : 'naive';
+  console.log('[parseNotesSmart] mode:', mode, 'program:', programId);
+
+  if (!process.env.OPENAI_API_KEY) {
+    // Fallback: use improved regex parser
+    return parseNaive(notes);
+  }
+
+  try {
+    const client = getOpenAI();
+
+    const sys = [
+      'You are a strict, deterministic parser for status updates.',
+      'Emit ONLY the tool call; never free text.',
+      'Split multi-entity instructions into multiple actions.',
+      "Accept commands that omit the word 'workstream' (e.g., 'Update Data Pipeline Ingest to Green').",
+      'Map synonyms: amber→YELLOW, on track→GREEN, at risk→YELLOW.',
+      'If unsure, still emit best-effort actions (disambiguation happens server-side).',
+    ].join('\n');
+
+    const user = `Program: ${programId}\nText: ${notes}`;
+
+    const chat = await client.chat.completions.create({
+      model: MODEL,
+      messages: [
+        { role: 'system', content: sys },
+        { role: 'user', content: user },
+      ],
+      tools: [parseTool],
+      tool_choice: { type: 'function', function: { name: 'emit_actions' } },
+      temperature: 0,
+    });
+
+    const tool = chat.choices[0]?.message?.tool_calls?.[0];
+
+    if (!tool?.function?.arguments) {
+      console.warn('[parseNotesSmart] Missing tool args; falling back to naive.');
+      return parseNaive(notes);
+    }
+
+    return JSON.parse(tool.function.arguments) as ParseResult;
+  } catch (e) {
+    console.error('[parseNotesSmart] OpenAI error; falling back to naive:', e);
+    return parseNaive(notes);
+  }
 }
 

@@ -1,13 +1,145 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { revalidatePath } from 'next/cache';
+import { revalidatePath, revalidateTag } from 'next/cache';
 export const runtime = 'nodejs';
 import { applyUpdateRequestSchema } from '@/lib/zod-schemas';
-import { parseNotesToJSON, naiveParseNotes } from '@/lib/openai';
+import { parseNotesToJSON, naiveParseNotes, type Action } from '@/lib/openai';
 import { getAdminClient } from '@/lib/supabase';
 import { calculateOverallStatus } from '@/lib/status';
 import { requireRole } from '@/lib/auth';
 import { matchWorkstreamId } from '@/lib/server/utils/matchWorkstream';
+import { WORKSTREAMS_TAG } from '@/lib/client/keys';
 import type { Workstream } from '@/lib/types';
+
+/**
+ * Apply resolved actions (new flow with IDs)
+ * Returns diff of changes
+ */
+async function applyResolvedActions(
+  routePath: string,
+  supabase: ReturnType<typeof getAdminClient>,
+  programId: string,
+  actions: Action[],
+  appliedBy?: string
+): Promise<NextResponse> {
+  // Generate correlation ID for logging
+  const correlationId = `apply-${Date.now()}-${Math.random().toString(36).substring(7)}`;
+  console.log(`[${routePath}] correlationId: ${correlationId}, actions: ${actions.length}`);
+
+  // Reject if any action lacks workstreamId (all actions must be resolved)
+  const unresolved = actions.filter((a) => !a.workstreamId);
+  if (unresolved.length > 0) {
+    return NextResponse.json(
+      { ok: false, error: 'Unresolved workstreamId', unresolved: unresolved.map((a) => a.name || 'Unknown') },
+      { status: 400 }
+    );
+  }
+
+  // Load before state for diff
+  const ids = actions
+    .filter((a) => a.intent !== 'delete' && a.workstreamId)
+    .map((a) => a.workstreamId!);
+
+  const { data: beforeData } = await supabase
+    .from('workstreams')
+    .select('*')
+    .in('id', ids)
+    .eq('program_id', programId);
+
+  const beforeMap = new Map<string, any>();
+  beforeData?.forEach((ws) => beforeMap.set(ws.id, ws));
+
+  let updatedCount = 0;
+  const diff: Array<{ id: string; before: any; after: any }> = [];
+
+  // Process actions
+  for (const a of actions) {
+    if (a.intent === 'delete') {
+      const deleteId = a.workstreamId;
+      if (!deleteId) {
+        console.warn(`[${routePath}] Delete action missing workstreamId: ${a.name}`);
+        continue;
+      }
+
+      const { error } = await supabase
+        .from('workstreams')
+        .update({
+          deleted_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', deleteId)
+        .eq('program_id', programId);
+
+      if (error) {
+        console.error(`[${routePath}] Delete error:`, error);
+      } else {
+        updatedCount++;
+        const before = beforeMap.get(deleteId) || null;
+        diff.push({
+          id: deleteId,
+          before,
+          after: { ...before, deleted_at: new Date().toISOString() },
+        });
+      }
+      continue;
+    }
+
+    // Update action
+    if (!a.workstreamId) continue;
+
+    const patch: any = { updated_at: new Date().toISOString() };
+
+    if (typeof a.percent === 'number') {
+      patch.percent_complete = Math.max(0, Math.min(100, a.percent));
+    }
+    if (a.status) {
+      patch.status = a.status === 'AMBER' ? 'YELLOW' : a.status;
+    }
+    if (a.next_milestone !== undefined) {
+      patch.next_milestone = a.next_milestone;
+    }
+
+    const { error } = await supabase
+      .from('workstreams')
+      .update(patch)
+      .eq('id', a.workstreamId)
+      .eq('program_id', programId);
+
+    if (error) {
+      console.error(`[${routePath}] Update error:`, error);
+    } else {
+      updatedCount++;
+      const before = beforeMap.get(a.workstreamId) || null;
+      const { data: afterData } = await supabase
+        .from('workstreams')
+        .select('*')
+        .eq('id', a.workstreamId)
+        .single();
+
+      diff.push({
+        id: a.workstreamId,
+        before,
+        after: afterData || { ...before, ...patch },
+      });
+    }
+  }
+
+  // Revalidate
+  try {
+    revalidateTag(WORKSTREAMS_TAG(programId));
+    revalidatePath('/dashboard');
+  } catch (e) {
+    console.warn(`[${routePath}] Revalidation failed:`, e);
+  }
+
+  console.log(`[${routePath}] correlationId: ${correlationId}, updatedCount: ${updatedCount}, diff entries: ${diff.length}`);
+
+  return NextResponse.json({
+    ok: true,
+    updatedCount,
+    diff,
+    correlationId,
+  });
+}
 
 export async function POST(request: NextRequest) {
   const routePath = '/api/apply-update';
@@ -15,7 +147,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     console.log(`[${routePath}] Request keys: ${Object.keys(body).join(', ')}`);
     
-    const { programId, notes, appliedBy } = applyUpdateRequestSchema.parse(body);
+    const { programId, notes, appliedBy, actions } = applyUpdateRequestSchema.parse(body);
 
     // Require OWNER or CONTRIBUTOR role
     await requireRole(programId, ['OWNER', 'CONTRIBUTOR']);
@@ -30,6 +162,20 @@ export async function POST(request: NextRequest) {
         { status: 500 }
       );
     }
+
+    // NEW FLOW: If actions are provided (from parse endpoint), use resolved IDs
+    if (actions && Array.isArray(actions) && actions.length > 0) {
+      return await applyResolvedActions(routePath, supabase, programId, actions, appliedBy);
+    }
+
+    // OLD FLOW: Parse notes (backward compatibility)
+    if (!notes) {
+      return NextResponse.json(
+        { ok: false, error: 'Either notes or actions must be provided' },
+        { status: 400 }
+      );
+    }
+
     const todayISO = new Date().toISOString().split('T')[0]!;
 
     console.log(`[${routePath}] programId: ${programId}`);
