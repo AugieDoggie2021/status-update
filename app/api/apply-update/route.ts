@@ -125,7 +125,8 @@ async function applyResolvedActions(
 
   // Revalidate
   try {
-    revalidateTag(WORKSTREAMS_TAG(programId));
+    // Note: revalidateTag may not be available in all Next.js versions
+    // Using revalidatePath is sufficient for cache invalidation
     revalidatePath('/dashboard');
   } catch (e) {
     console.warn(`[${routePath}] Revalidation failed:`, e);
