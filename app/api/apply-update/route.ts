@@ -1,12 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { revalidatePath, revalidateTag } from 'next/cache';
+import { revalidatePath } from 'next/cache';
 export const runtime = 'nodejs';
 import { applyUpdateRequestSchema } from '@/lib/zod-schemas';
 import { parseNotesToJSON, naiveParseNotes } from '@/lib/openai';
 import { getAdminClient } from '@/lib/supabase';
 import { calculateOverallStatus } from '@/lib/status';
 import { requireRole } from '@/lib/auth';
-import { WORKSTREAMS_TAG } from '@/lib/client/keys';
 import { matchWorkstreamId } from '@/lib/server/utils/matchWorkstream';
 import type { Workstream } from '@/lib/types';
 
@@ -227,9 +226,8 @@ export async function POST(request: NextRequest) {
 
     // Revalidate server caches
     try {
-      revalidateTag(WORKSTREAMS_TAG(programId));
       revalidatePath('/dashboard');
-      console.log(`[${routePath}] Revalidated cache tag: ${WORKSTREAMS_TAG(programId)}`);
+      console.log(`[${routePath}] Revalidated path: /dashboard`);
     } catch (e) {
       console.warn(`[${routePath}] Revalidation failed:`, e);
     }
