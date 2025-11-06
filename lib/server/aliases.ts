@@ -47,7 +47,7 @@ export async function getAliasMap(programId: string): Promise<Record<string, str
     // Add abbreviation if name has multiple words
     const words = ws.name.split(/\s+/).filter(Boolean);
     if (words.length >= 2) {
-      const abbrev = words.map(w => w[0]).join('');
+      const abbrev = words.map((w: string) => w[0]).join('');
       if (abbrev.length >= 2) {
         aliases.push(abbrev);
       }
