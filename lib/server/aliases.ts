@@ -31,7 +31,7 @@ export async function getAliasMap(programId: string): Promise<Record<string, str
 
   // Hardcoded aliases for common patterns
   for (const ws of workstreams) {
-    const name = ws.name.toLowerCase();
+    const name = (ws.name ?? '').toLowerCase();
     const aliases: string[] = [];
 
     // "Modeling & Analytics" -> ["M&A", "Modeling Analytics", "M and A"]
@@ -45,9 +45,9 @@ export async function getAliasMap(programId: string): Promise<Record<string, str
     }
 
     // Add abbreviation if name has multiple words
-    const words = ws.name.split(/\s+/).filter(Boolean);
+    const words = (ws.name ?? '').split(/\s+/).filter(Boolean);
     if (words.length >= 2) {
-      const abbrev = words.map((w: string) => w[0]).join('');
+      const abbrev = words.map(word => word[0] ?? '').join('');
       if (abbrev.length >= 2) {
         aliases.push(abbrev);
       }
