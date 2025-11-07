@@ -638,6 +638,20 @@ See `scripts/SETUP_GIT_AUTH.md` for detailed authentication setup.
 - Generic `text-muted-foreground` on colored backgrounds
 - Insufficient contrast that makes text hard to read
 
+## CI & Logs
+
+Set these GitHub repo secrets for workflows:
+
+- `VERCEL_TOKEN`              (Personal token from vercel.com/account/tokens)
+- `VERCEL_ORG_ID` (optional)  (used by vercel pull, not strictly required if project is linked)
+- `VERCEL_PROJECT_ID` (optional)
+
+Optional (if your code/tests need them at build-time): `OPENAI_API_KEY`, `OPENAI_MODEL`, `NEXT_PUBLIC_*` etc.
+
+PR builds run `vercel pull --environment=preview` then `vercel build`. On failure, the log is posted as a PR comment and uploaded as an artifact.
+
+To fetch logs from a specific deployment: **Actions → Fetch Vercel Logs → run** with `deploymentId` and `pr` number.
+
 ## License
 
 MIT

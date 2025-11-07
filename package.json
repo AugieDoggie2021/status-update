@@ -15,7 +15,13 @@
     "seed:program": "node scripts/seedProgram.mjs",
     "scan:runtime": "node scripts/repo-scan.mjs",
     "grant:role": "tsx scripts/grant-role.ts",
-    "git:sync": "powershell -ExecutionPolicy Bypass -File scripts/git-sync.ps1"
+    "git:sync": "powershell -ExecutionPolicy Bypass -File scripts/git-sync.ps1",
+    "typecheck": "tsc --noEmit",
+    "vercel:pull:preview": "vercel pull --yes --environment=preview --token=$VERCEL_TOKEN",
+    "vercel:pull:prod": "vercel pull --yes --environment=production --token=$VERCEL_TOKEN",
+    "vercel:build": "vercel build --token=$VERCEL_TOKEN",
+    "vercel:debug": "pnpm vercel:pull:preview && pnpm vercel:build",
+    "build:ci": "pnpm typecheck && pnpm vercel:build"
   },
   "dependencies": {
     "@radix-ui/react-alert-dialog": "^1.1.15",
@@ -70,6 +76,7 @@
     "ts-node": "^10.9.2",
     "tsx": "^4.19.2",
     "typescript": "^5",
+    "vercel": "^40.0.0",
     "vitest": "^2.0.0"
   }
 }

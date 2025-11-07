@@ -1,0 +1,73 @@
+name: Vercel Build Check (Preview)
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with: { version: 9 }
+
+      - uses: actions/setup-node@v4
+        with: { node-version: 20 }
+
+      - run: pnpm install --frozen-lockfile
+
+      # Pull preview env from Vercel so the build matches deploy
+      - name: Vercel pull (preview env)
+        run: pnpm vercel:pull:preview
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+
+      - name: Typecheck + Vercel build
+        id: build
+        run: |
+          set -o pipefail
+          pnpm build:ci 2>&1 | tee vercel-build.log
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+
+      - name: Upload build log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: vercel-build-log
+          path: vercel-build.log
+
+      - name: Comment on PR if failed
+        if: failure()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const body = fs.readFileSync('vercel-build.log', 'utf8');
+            const max = 65000; // GH comment size limit-ish
+            const tail = body.length > max ? body.slice(-max) : body;
+            const msg = [
+              '❌ **Vercel Preview Build failed**',
+              '',
+              '<details><summary>Last ~65k of build log</summary>',
+              '',
+              '```',
+              tail,
+              '```',
+              '',
+              '</details>',
+              '',
+              'Artifacts: **vercel-build-log** (full log).'
+            ].join('\n');
+            github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: msg
+            });
+
