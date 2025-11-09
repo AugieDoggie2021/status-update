@@ -159,6 +159,17 @@ advisory-status-tracker/
 └── middleware.ts          # Route protection middleware
 ```
 
+## BMAD Method Integration
+
+This repository now ships with the BMAD Method framework described in "BMAD-Method: From Zero to Hero".
+
+- **Agents & Personas**: .bmad-core/agents/ contains the Analyst, Architect, Developer, QA, PM, PO, Scrum Master, Orchestrator, and Master personas. Load a single agent or a preconfigured team from .bmad-core/agent-teams/ to keep conversations role-focused.
+- **Workflows**: Greenfield and brownfield delivery playbooks live in .bmad-core/workflows/. Start with greenfield-fullstack.yaml for net-new features or brownfield-fullstack.yaml when iterating on existing modules.
+- **Shared Resources**: Workflow START/END blocks resolve into the new docs/ workspace and .ai/debug-log.md. Architecture primers, PRD scaffolds, story stubs, and QA notes are ready for agents to read/write.
+- **Keeping Docs Fresh**: Update docs/architecture/*.md whenever the stack, coding standards, or folder layout changes. The Orchestrator ingests these via .bmad-core/core-config.yaml.
+- **Cursor usage**: In Cursor, open .bmad-core/agent-teams/team-fullstack.yaml, copy the front matter, and paste it into a new chat to spin up the orchestrated workflow. Switch personas by referencing the agentId in each agent file.
+- **Upgrades**: To pull new versions from upstream without disturbing your docs, rerun npx bmad-method update -f -d .
+
 ## Usage
 
 ### Dashboard

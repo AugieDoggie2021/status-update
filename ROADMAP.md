@@ -72,6 +72,64 @@ Integrate with leading project management tools to enable bidirectional data syn
 
 ---
 
+### 3. Dashboard Update Automation
+
+**Priority:** High  
+**Status:** Planned
+
+Expand the update feature to control all dashboard surfaces—KPIs, milestones, and workstream notes—via structured commands.
+
+**Key Capabilities:**
+- Modify KPI cards (e.g., “Update the Overall Status KPI to Green”, “Add a new KPI tracking users”)
+- Append or adjust milestones (e.g., “Additional milestone in the next 7 days”)
+- Edit the Notes section alongside status updates
+- Validate and preview changes before they are applied
+- Audit log of generated changes for review and rollback
+
+**Technical Approach:**
+- Extend the update pipeline to parse intent across KPIs, milestones, and notes
+- Introduce domain-specific command grammars for dashboard artifacts
+- Augment the database schema for new KPI definitions and note history
+- Update the `UpdateWizard` client to surface multi-surface previews
+- Ensure commands map to supabase mutations with transactional integrity
+
+**Implementation Notes:**
+- Requires supabase migrations for KPI metadata and audit trails
+- Consider role-based restrictions on who can alter specific dashboard elements
+- Add automated tests covering exemplar commands and edge cases
+- Coordinate release with enablement docs and in-app guidance
+
+---
+
+### 4. Access Revocation Enhancements
+
+**Priority:** Medium  
+**Status:** Planned
+
+Streamline workflows for quickly removing members from programs or workspaces, including just-in-time revocation and audit visibility.
+
+**Key Capabilities:**
+- One-click removal of members with optional reason capture
+- Bulk revoke flow for multiple users at once
+- Automatic cleanup of impersonation sessions and pending invites
+- Notifications to program owners when access changes
+- Audit trail entries recording who revoked access and why
+
+**Technical Approach:**
+- Extend Supabase role management with revocation helpers
+- Add admin UI to `app/admin/members` for revoke actions and filtering
+- Introduce server-side guards to immediately invalidate sessions/tokens
+- Leverage background jobs (if needed) to cascade permissions removal
+- Update audit log schema to capture revocation metadata
+
+**Implementation Notes:**
+- Coordinate with security review to ensure least-privilege defaults
+- Provide undo window or grace period configuration
+- Add automated tests covering revoke flows, including impersonation
+- Document revocation procedures for admins and support staff
+
+---
+
 ## Future Considerations
 
 ### Additional Features Under Consideration
