@@ -9,6 +9,11 @@ export type Program = {
   sponsor?: string | null;
   start_date?: string | null;
   end_date?: string | null;
+  logo_url?: string | null;
+  app_name?: string | null;
+  primary_color?: string | null;
+  secondary_color?: string | null;
+  accent_color?: string | null;
 };
 
 export type Workstream = {

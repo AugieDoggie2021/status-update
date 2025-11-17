@@ -11,6 +11,11 @@ export type Database = {
           start_date: string | null;
           end_date: string | null;
           created_by: string | null;
+          logo_url: string | null;
+          app_name: string | null;
+          primary_color: string | null;
+          secondary_color: string | null;
+          accent_color: string | null;
         };
         Insert: Omit<Database['public']['Tables']['programs']['Row'], 'id'>;
         Update: Partial<Database['public']['Tables']['programs']['Insert']>;

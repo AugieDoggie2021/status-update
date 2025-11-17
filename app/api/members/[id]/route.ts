@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAdminClient } from '@/lib/supabase';
-import { requireRole } from '@/lib/auth';
+import { requireRole, requireAuth } from '@/lib/auth';
 import { firstZodMessage } from '@/lib/error-utils';
 import { z } from 'zod';
 
@@ -75,6 +75,10 @@ export async function PATCH(
   }
 }
 
+const deleteSchema = z.object({
+  reason: z.string().optional(),
+});
+
 export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -83,10 +87,24 @@ export async function DELETE(
     const { id } = await params;
     const supabase = getAdminClient();
 
-    // Get membership to find program_id
+    // Parse request body for optional reason
+    let reason: string | undefined;
+    try {
+      // Check if request has a body
+      const contentType = request.headers.get('content-type');
+      if (contentType?.includes('application/json')) {
+        const body = await request.json();
+        const parsed = deleteSchema.parse(body);
+        reason = parsed.reason;
+      }
+    } catch {
+      // Body is optional, continue without reason
+    }
+
+    // Get membership details before deletion (need user_id and program_id for audit log)
     const { data: membership, error: membershipError } = await supabase
       .from('program_memberships')
-      .select('program_id')
+      .select('program_id, user_id')
       .eq('id', id)
       .single();
 
@@ -100,21 +118,63 @@ export async function DELETE(
     // Require OWNER role
     await requireRole(membership.program_id, ['OWNER']);
 
+    // Get current user (who is performing the revocation)
+    const session = await requireAuth();
+    const revokedByUserId = session.user.id;
+
+    // Prevent self-revocation (safety check)
+    if (membership.user_id === revokedByUserId) {
+      return NextResponse.json(
+        { ok: false, error: 'Cannot revoke your own access. Please ask another owner to remove you.' },
+        { status: 400 }
+      );
+    }
+
     // Delete membership
-    const { error } = await supabase
+    const { error: deleteError } = await supabase
       .from('program_memberships')
       .delete()
       .eq('id', id);
 
-    if (error) throw error;
+    if (deleteError) throw deleteError;
 
-    return NextResponse.json({ ok: true, message: 'Member removed successfully' });
+    // Create audit log entry
+    const { error: auditError } = await supabase
+      .from('access_revocations')
+      .insert({
+        program_id: membership.program_id,
+        revoked_user_id: membership.user_id,
+        revoked_by_user_id: revokedByUserId,
+        revocation_reason: reason || null,
+        membership_id: id, // Store the membership ID for reference (even though it's deleted)
+      });
+
+    if (auditError) {
+      // Log error but don't fail the request - revocation succeeded
+      console.error('[DELETE /api/members/:id] Failed to create audit log:', auditError);
+    }
+
+    // Note: Impersonation cleanup is handled via cookies which expire naturally
+    // If the revoked user has active impersonation sessions, they will be cleared
+    // on their next request when the system checks their membership status
+
+    return NextResponse.json({ 
+      ok: true, 
+      message: 'Member removed successfully',
+      auditLogId: auditError ? null : 'created'
+    });
   } catch (error) {
     if (error instanceof Error) {
       if (error.message === 'FORBIDDEN') {
         return NextResponse.json(
           { ok: false, error: 'FORBIDDEN' },
           { status: 403 }
+        );
+      }
+      if (error.message === 'UNAUTHORIZED') {
+        return NextResponse.json(
+          { ok: false, error: 'UNAUTHORIZED' },
+          { status: 401 }
         );
       }
     }

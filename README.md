@@ -53,6 +53,21 @@ npm install
    ON CONFLICT (program_id, user_id) DO UPDATE SET role = 'OWNER';
    ```
 
+### 2b. Set Up Whitelabeling (Optional)
+
+1. Run the whitelabeling migration: `scripts/migrations/008_add_whitelabel_columns.sql`
+2. Create Supabase Storage bucket for logos:
+   - Go to **Storage** in Supabase dashboard
+   - Click **New bucket**
+   - Name: `program-logos`
+   - Public bucket: **Yes** (for public read access)
+   - File size limit: 2MB
+   - Allowed MIME types: `image/png, image/jpeg, image/jpg, image/svg+xml`
+3. Configure theme settings:
+   - Navigate to `/admin/theme` (OWNER role required)
+   - Upload logo, set app name, and configure colors
+   - Changes apply immediately without code redeployment
+
 ### 3. Set Up Environment Variables
 
 Create a `.env.local` file in the root directory (copy from `.env.example` if it exists):
@@ -155,7 +170,9 @@ advisory-status-tracker/
 │       ├── 002_add_rls_and_memberships.sql
 │       ├── 003_add_status_updates_table.sql
 │       ├── 004_add_milestones_table.sql
-│       └── 005_update_workstreams_schema.sql
+│       ├── 005_update_workstreams_schema.sql
+│       ├── 007_add_access_revocation_audit.sql
+│       └── 008_add_whitelabel_columns.sql
 └── middleware.ts          # Route protection middleware
 ```
 
@@ -209,6 +226,16 @@ Add MEDIUM risk on vendor API throughput.
 3. Click **Apply Update** (cards refresh)
 4. Click **Explain Weekly** (copy summary text)
 
+### Customizing Theme (OWNER only)
+
+1. Navigate to `/admin/theme`
+2. Upload a logo (PNG, JPG, or SVG, max 2MB)
+3. Set a custom app name
+4. Configure primary, secondary, and accent colors using color pickers or hex codes
+5. Preview changes in real-time
+6. Click **Save Theme** to apply changes
+7. Changes are applied immediately across the application
+
 ## API Routes
 
 ### `POST /api/parse`
@@ -251,6 +278,53 @@ Generate an executive weekly summary.
   "programId": "uuid"
 }
 ```
+
+### Theme Management API
+
+#### `GET /api/theme?programId={id}`
+Fetch program theme configuration (logo, app name, colors). Requires membership (any role).
+
+**Response:**
+```json
+{
+  "ok": true,
+  "theme": {
+    "logo_url": "https://...",
+    "app_name": "Status Tracker",
+    "primary_color": "#10b981",
+    "secondary_color": "#0284c7",
+    "accent_color": "#10b981"
+  }
+}
+```
+
+#### `PATCH /api/theme?programId={id}`
+Update theme configuration (OWNER only).
+
+**Body:**
+```json
+{
+  "app_name": "Custom App Name",
+  "primary_color": "#10b981",
+  "secondary_color": "#0284c7",
+  "accent_color": "#10b981"
+}
+```
+
+#### `POST /api/theme/upload?programId={id}`
+Upload logo image (OWNER only). Accepts multipart/form-data with `file` field.
+
+**Response:**
+```json
+{
+  "ok": true,
+  "logo_url": "https://...",
+  "message": "Logo uploaded successfully"
+}
+```
+
+#### `DELETE /api/theme/upload?programId={id}`
+Delete logo (OWNER only).
 
 ## Testing
 
@@ -407,6 +481,7 @@ All API routes enforce role-based access:
 - GET routes require membership (any role)
 - POST/PATCH/DELETE routes require OWNER or CONTRIBUTOR
 - Membership admin routes require OWNER only
+- Theme management routes require OWNER only
 
 ### Debug Endpoints
 

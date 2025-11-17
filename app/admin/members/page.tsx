@@ -32,6 +32,10 @@ import { toast } from 'sonner';
 import { MoreVertical, UserPlus, Trash2, Shield, User, Eye, TestTube } from 'lucide-react';
 import type { Role } from '@/lib/role';
 import { useImpersonation, startImpersonating, stopImpersonating } from '@/lib/client/impersonate';
+import { RevokeMemberDialog } from '@/components/RevokeMemberDialog';
+import { BulkRevokeDialog } from '@/components/BulkRevokeDialog';
+import { AuditLog } from '@/components/AuditLog';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 const PROGRAM_ID = process.env.NEXT_PUBLIC_PROGRAM_ID || '';
 
@@ -50,6 +54,10 @@ export default function MembersPage() {
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteRole, setInviteRole] = useState<Role>('VIEWER');
   const [isInviting, setIsInviting] = useState(false);
+  const [revokeDialogOpen, setRevokeDialogOpen] = useState(false);
+  const [memberToRevoke, setMemberToRevoke] = useState<Member | null>(null);
+  const [selectedMembers, setSelectedMembers] = useState<Set<string>>(new Set());
+  const [bulkRevokeDialogOpen, setBulkRevokeDialogOpen] = useState(false);
 
   const { data: roleData } = useSWR<{ ok: boolean; role: Role | null }>(
     PROGRAM_ID ? `/api/role?programId=${PROGRAM_ID}` : null,
@@ -75,6 +83,60 @@ export default function MembersPage() {
   };
 
   const members = membersData?.members || [];
+
+  // Bulk selection handlers
+  const toggleMemberSelection = (memberId: string) => {
+    const newSelected = new Set(selectedMembers);
+    if (newSelected.has(memberId)) {
+      newSelected.delete(memberId);
+    } else {
+      newSelected.add(memberId);
+    }
+    setSelectedMembers(newSelected);
+  };
+
+  const toggleSelectAll = () => {
+    const selectableMembers = members.filter(m => m.role !== 'OWNER');
+    if (selectedMembers.size === selectableMembers.length) {
+      setSelectedMembers(new Set());
+    } else {
+      setSelectedMembers(new Set(selectableMembers.map(m => m.id)));
+    }
+  };
+
+  const handleBulkRevokeClick = () => {
+    if (selectedMembers.size === 0) return;
+    setBulkRevokeDialogOpen(true);
+  };
+
+  const handleBulkRevokeConfirm = async (reason?: string) => {
+    if (selectedMembers.size === 0) return;
+
+    try {
+      const res = await fetch('/api/members/bulk-revoke', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          membershipIds: Array.from(selectedMembers),
+          reason,
+          programId: PROGRAM_ID,
+        }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || 'Failed to revoke members');
+      }
+
+      toast.success(`Successfully revoked ${selectedMembers.size} member(s)`);
+      setSelectedMembers(new Set());
+      mutate();
+      setBulkRevokeDialogOpen(false);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to revoke members');
+      throw error;
+    }
+  };
 
   const handleInvite = async () => {
     if (!inviteEmail.trim()) {
@@ -131,24 +193,34 @@ export default function MembersPage() {
     }
   };
 
-  const handleRemove = async (membershipId: string) => {
-    if (!confirm('Are you sure you want to remove this member?')) {
-      return;
-    }
+  const handleRemoveClick = (member: Member) => {
+    setMemberToRevoke(member);
+    setRevokeDialogOpen(true);
+  };
+
+  const handleRevokeConfirm = async (reason?: string) => {
+    if (!memberToRevoke) return;
 
     try {
-      const res = await fetch(`/api/members/${membershipId}`, {
+      const res = await fetch(`/api/members/${memberToRevoke.id}`, {
         method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reason }),
       });
 
       if (!res.ok) {
-        throw new Error('Failed to remove member');
+        const data = await res.json();
+        throw new Error(data.error || 'Failed to remove member');
       }
 
-      toast.success('Member removed');
+      const memberName = memberToRevoke.full_name || memberToRevoke.email || 'Member';
+      toast.success(`${memberName} removed successfully`);
       mutate();
+      setMemberToRevoke(null);
     } catch (error) {
-      toast.error('Failed to remove member');
+      const memberName = memberToRevoke.full_name || memberToRevoke.email || 'Member';
+      toast.error(error instanceof Error ? error.message : `Failed to remove ${memberName}`);
+      throw error; // Re-throw so dialog can handle it
     }
   };
 
@@ -174,6 +246,14 @@ export default function MembersPage() {
           Invite Member
         </Button>
       </div>
+
+      <Tabs defaultValue="members" className="space-y-4">
+        <TabsList>
+          <TabsTrigger value="members">Members</TabsTrigger>
+          <TabsTrigger value="audit">Revocation History</TabsTrigger>
+        </TabsList>
+        
+        <TabsContent value="members" className="space-y-6">
 
       {/* Impersonation Testing Section - Owner Only */}
       {isOwner && (
@@ -225,8 +305,27 @@ export default function MembersPage() {
 
       <Card className="backdrop-blur-xl bg-white/50 dark:bg-slate-900/40 border border-white/20 rounded-2xl shadow-xl">
         <CardHeader>
-          <CardTitle>Members ({members.length})</CardTitle>
-          <CardDescription>Users with access to this program</CardDescription>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle>Members ({members.length})</CardTitle>
+              <CardDescription>Users with access to this program</CardDescription>
+            </div>
+            {selectedMembers.size > 0 && (
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-muted-foreground">
+                  {selectedMembers.size} selected
+                </span>
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  onClick={handleBulkRevokeClick}
+                >
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  Revoke Selected
+                </Button>
+              </div>
+            )}
+          </div>
         </CardHeader>
         <CardContent>
           {members.length === 0 ? (
@@ -235,6 +334,18 @@ export default function MembersPage() {
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead className="w-[50px]">
+                    <input
+                      type="checkbox"
+                      checked={
+                        members.filter(m => m.role !== 'OWNER').length > 0 &&
+                        selectedMembers.size === members.filter(m => m.role !== 'OWNER').length
+                      }
+                      onChange={toggleSelectAll}
+                      className="h-4 w-4 rounded border-gray-300"
+                      aria-label="Select all members"
+                    />
+                  </TableHead>
                   <TableHead>Name</TableHead>
                   <TableHead>Email</TableHead>
                   <TableHead>Role</TableHead>
@@ -242,64 +353,94 @@ export default function MembersPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {members.map((member) => (
-                  <TableRow key={member.id}>
-                    <TableCell className="font-medium">
-                      {member.full_name || 'Unknown'}
-                    </TableCell>
-                    <TableCell>{member.email || '—'}</TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        {member.role === 'OWNER' && <Shield className="h-4 w-4 text-purple-600" />}
-                        {member.role === 'CONTRIBUTOR' && <User className="h-4 w-4 text-blue-600" />}
-                        {member.role === 'VIEWER' && <Eye className="h-4 w-4 text-gray-600" />}
-                        <span className="capitalize">{member.role.toLowerCase()}</span>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="sm">
-                            <MoreVertical className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem
-                            onClick={() => handleChangeRole(member.id, 'OWNER')}
-                            disabled={member.role === 'OWNER'}
-                          >
-                            Set as Owner
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
-                            onClick={() => handleChangeRole(member.id, 'CONTRIBUTOR')}
-                            disabled={member.role === 'CONTRIBUTOR'}
-                          >
-                            Set as Contributor
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
-                            onClick={() => handleChangeRole(member.id, 'VIEWER')}
-                            disabled={member.role === 'VIEWER'}
-                          >
-                            Set as Viewer
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
-                            onClick={() => handleRemove(member.id)}
-                            className="text-destructive"
-                            disabled={member.role === 'OWNER'}
-                          >
-                            <Trash2 className="mr-2 h-4 w-4" />
-                            Remove
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </TableCell>
-                  </TableRow>
-                ))}
+                {members.map((member) => {
+                  const isSelectable = member.role !== 'OWNER';
+                  const isSelected = selectedMembers.has(member.id);
+                  return (
+                    <TableRow key={member.id}>
+                      <TableCell>
+                        <input
+                          type="checkbox"
+                          checked={isSelected}
+                          onChange={() => toggleMemberSelection(member.id)}
+                          disabled={!isSelectable}
+                          className="h-4 w-4 rounded border-gray-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                          aria-label={`Select ${member.full_name || member.email || 'member'}`}
+                        />
+                      </TableCell>
+                      <TableCell className="font-medium">
+                        {member.full_name || 'Unknown'}
+                      </TableCell>
+                      <TableCell>{member.email || '—'}</TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          {member.role === 'OWNER' && <Shield className="h-4 w-4 text-purple-600" />}
+                          {member.role === 'CONTRIBUTOR' && <User className="h-4 w-4 text-blue-600" />}
+                          {member.role === 'VIEWER' && <Eye className="h-4 w-4 text-gray-600" />}
+                          <span className="capitalize">{member.role.toLowerCase()}</span>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="sm">
+                              <MoreVertical className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem
+                              onClick={() => handleChangeRole(member.id, 'OWNER')}
+                              disabled={member.role === 'OWNER'}
+                            >
+                              Set as Owner
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={() => handleChangeRole(member.id, 'CONTRIBUTOR')}
+                              disabled={member.role === 'CONTRIBUTOR'}
+                            >
+                              Set as Contributor
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={() => handleChangeRole(member.id, 'VIEWER')}
+                              disabled={member.role === 'VIEWER'}
+                            >
+                              Set as Viewer
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={() => handleRemoveClick(member)}
+                              className="text-destructive"
+                              disabled={member.role === 'OWNER'}
+                            >
+                              <Trash2 className="mr-2 h-4 w-4" />
+                              Remove
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
               </TableBody>
             </Table>
           )}
         </CardContent>
       </Card>
+        </TabsContent>
+
+        <TabsContent value="audit">
+          <Card className="backdrop-blur-xl bg-white/50 dark:bg-slate-900/40 border border-white/20 rounded-2xl shadow-xl">
+            <CardHeader>
+              <CardTitle>Access Revocation History</CardTitle>
+              <CardDescription>
+                Audit trail of all member access revocations for this program
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <AuditLog programId={PROGRAM_ID} />
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
 
       <Dialog open={inviteDialogOpen} onOpenChange={setInviteDialogOpen}>
         <DialogContent className="backdrop-blur-xl bg-white/90 dark:bg-slate-900/90 border border-white/20 rounded-2xl">
@@ -344,6 +485,21 @@ export default function MembersPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <RevokeMemberDialog
+        open={revokeDialogOpen}
+        onOpenChange={setRevokeDialogOpen}
+        member={memberToRevoke}
+        onConfirm={handleRevokeConfirm}
+      />
+
+      <BulkRevokeDialog
+        open={bulkRevokeDialogOpen}
+        onOpenChange={setBulkRevokeDialogOpen}
+        selectedCount={selectedMembers.size}
+        selectedMembers={members.filter(m => selectedMembers.has(m.id))}
+        onConfirm={handleBulkRevokeConfirm}
+      />
     </div>
   );
 }

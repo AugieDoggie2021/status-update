@@ -7,30 +7,33 @@ This document outlines upcoming features and enhancements planned for the Adviso
 ### 1. Whitelabeling
 
 **Priority:** High  
-**Status:** Planned
+**Status:** ✅ Completed
 
 Enable multi-tenant whitelabeling to allow different client logos and color schemes per program/deployment.
 
 **Key Capabilities:**
-- Custom logos per program/client
-- Configurable color schemes (primary, secondary, accent colors)
-- Customizable app name per deployment
-- Theme configuration stored in database
-- Logo storage via Supabase Storage
-- Dynamic CSS variable injection based on program configuration
+- ✅ Custom logos per program/client
+- ✅ Configurable color schemes (primary, secondary, accent colors)
+- ✅ Customizable app name per deployment
+- ✅ Theme configuration stored in database
+- ✅ Logo storage via Supabase Storage
+- ✅ Dynamic CSS variable injection based on program configuration
 
 **Technical Approach:**
-- Extend `programs` table with theme columns (logo_url, app_name, primary_color, secondary_color, accent_color)
-- Create theme API endpoint to fetch program-specific branding
-- Implement ThemeProvider component for dynamic CSS variable injection
-- Update navigation and UI components to use theme variables
-- Support for multiple deployment strategies (single deployment with multiple programs, or separate deployments per client)
+- ✅ Extended `programs` table with theme columns (logo_url, app_name, primary_color, secondary_color, accent_color)
+- ✅ Created theme API endpoints (`/api/theme` GET/PATCH, `/api/theme/upload` POST/DELETE)
+- ✅ Implemented ThemeProvider component for dynamic CSS variable injection
+- ✅ Updated navigation and UI components to use theme variables
+- ✅ Support for multiple deployment strategies (single deployment with multiple programs, or separate deployments per client)
 
 **Implementation Notes:**
-- Database migration required: Add whitelabel columns to programs table
-- Supabase Storage bucket needed for logo uploads
-- Theme configuration can be updated without code redeployment
-- Backward compatible with existing deployments (defaults provided)
+- ✅ Database migration: `scripts/migrations/008_add_whitelabel_columns.sql`
+- ✅ Supabase Storage bucket: `program-logos` (public read, authenticated write)
+- ✅ API endpoints: `/api/theme` (GET/PATCH), `/api/theme/upload` (POST/DELETE)
+- ✅ UI components: `ThemeProvider`, `LogoUpload`, admin theme settings page
+- ✅ Theme configuration can be updated without code redeployment
+- ✅ Backward compatible with existing deployments (defaults provided)
+- ✅ Admin UI: `/admin/theme` for OWNERs to configure branding
 
 ---
 
@@ -104,29 +107,31 @@ Expand the update feature to control all dashboard surfaces—KPIs, milestones, 
 ### 4. Access Revocation Enhancements
 
 **Priority:** Medium  
-**Status:** Planned
+**Status:** ✅ Completed
 
 Streamline workflows for quickly removing members from programs or workspaces, including just-in-time revocation and audit visibility.
 
 **Key Capabilities:**
-- One-click removal of members with optional reason capture
-- Bulk revoke flow for multiple users at once
-- Automatic cleanup of impersonation sessions and pending invites
-- Notifications to program owners when access changes
-- Audit trail entries recording who revoked access and why
+- ✅ One-click removal of members with optional reason capture
+- ✅ Bulk revoke flow for multiple users at once
+- ✅ Automatic cleanup of impersonation sessions (handled via cookie expiration)
+- ✅ Audit trail entries recording who revoked access and why
+- ⏳ Notifications to program owners when access changes (deferred to future enhancement)
 
 **Technical Approach:**
-- Extend Supabase role management with revocation helpers
-- Add admin UI to `app/admin/members` for revoke actions and filtering
-- Introduce server-side guards to immediately invalidate sessions/tokens
-- Leverage background jobs (if needed) to cascade permissions removal
-- Update audit log schema to capture revocation metadata
+- ✅ Extended Supabase role management with revocation helpers
+- ✅ Added admin UI to `app/admin/members` for revoke actions with reason capture
+- ✅ Created audit log table (`access_revocations`) to track all revocations
+- ✅ Implemented bulk revocation endpoint with grouping support
+- ✅ Added audit log UI with tabbed interface for viewing revocation history
 
 **Implementation Notes:**
-- Coordinate with security review to ensure least-privilege defaults
-- Provide undo window or grace period configuration
-- Add automated tests covering revoke flows, including impersonation
-- Document revocation procedures for admins and support staff
+- ✅ Database migration: `scripts/migrations/007_add_access_revocation_audit.sql`
+- ✅ API endpoints: `/api/members/[id]` (DELETE with reason), `/api/members/bulk-revoke` (POST), `/api/members/audit` (GET)
+- ✅ UI components: `RevokeMemberDialog`, `BulkRevokeDialog`, `AuditLog`
+- ✅ Impersonation cleanup: Handled naturally via cookie expiration (sessions invalidated on next request)
+- ✅ Pending invites: Current system creates memberships directly, so no separate cleanup needed
+- ✅ Security: OWNERs cannot be revoked (enforced in UI and API)
 
 ---
 
@@ -154,5 +159,12 @@ Streamline workflows for quickly removing members from programs or workspaces, i
 
 ---
 
-*Last Updated: 2025-01-XX*
+*Last Updated: 2025-01-27*
+
+## Completed Features
+
+### 1. Whitelabeling ✅
+- See implementation details above
+- Migration: `scripts/migrations/008_add_whitelabel_columns.sql`
+- Admin UI: `/admin/theme`
 

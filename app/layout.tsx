@@ -4,6 +4,7 @@ import "./globals.css";
 import { Nav } from "@/components/nav";
 import { Toaster } from "@/components/ui/sonner";
 import ErrorBoundary from "@/components/ErrorBoundary";
+import { ThemeProvider } from "@/components/ThemeProvider";
 // import { Analytics } from "@vercel/analytics/react"; // TODO: Uncomment after npm install
 
 const spaceGrotesk = Space_Grotesk({
@@ -33,11 +34,13 @@ export default function RootLayout({
       <body
         className={`${spaceGrotesk.variable} ${inter.variable} font-body antialiased`}
       >
-        <Nav />
-        <main className="container mx-auto px-4 py-8">
-          <ErrorBoundary>{children}</ErrorBoundary>
-        </main>
-        <Toaster />
+        <ThemeProvider>
+          <Nav />
+          <main className="container mx-auto px-4 py-8">
+            <ErrorBoundary>{children}</ErrorBoundary>
+          </main>
+          <Toaster />
+        </ThemeProvider>
         {/* <Analytics /> */}
       </body>
     </html>
