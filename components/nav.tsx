@@ -95,21 +95,38 @@ export function Nav() {
               );
             })}
             {isOwner && (
-              <Link
-                href="/admin/members"
-                className={cn(
-                  'px-3 py-2 rounded-md text-sm font-medium transition-all',
-                  pathname === '/admin/members'
-                    ? 'text-slate-900 dark:text-slate-100 border'
-                    : 'text-slate-700 dark:text-slate-300 hover:bg-accent/50 hover:text-slate-900 dark:hover:text-slate-100'
-                )}
-                style={pathname === '/admin/members' ? {
-                  background: `linear-gradient(to right, hsl(var(--theme-primary) / 0.2), hsl(var(--theme-secondary) / 0.2))`,
-                  borderColor: `hsl(var(--theme-primary) / 0.3)`,
-                } : undefined}
-              >
-                Members
-              </Link>
+              <>
+                <Link
+                  href="/admin/members"
+                  className={cn(
+                    'px-3 py-2 rounded-md text-sm font-medium transition-all',
+                    pathname === '/admin/members'
+                      ? 'text-slate-900 dark:text-slate-100 border'
+                      : 'text-slate-700 dark:text-slate-300 hover:bg-accent/50 hover:text-slate-900 dark:hover:text-slate-100'
+                  )}
+                  style={pathname === '/admin/members' ? {
+                    background: `linear-gradient(to right, hsl(var(--theme-primary) / 0.2), hsl(var(--theme-secondary) / 0.2))`,
+                    borderColor: `hsl(var(--theme-primary) / 0.3)`,
+                  } : undefined}
+                >
+                  Members
+                </Link>
+                <Link
+                  href="/admin/theme"
+                  className={cn(
+                    'px-3 py-2 rounded-md text-sm font-medium transition-all',
+                    pathname === '/admin/theme'
+                      ? 'text-slate-900 dark:text-slate-100 border'
+                      : 'text-slate-700 dark:text-slate-300 hover:bg-accent/50 hover:text-slate-900 dark:hover:text-slate-100'
+                  )}
+                  style={pathname === '/admin/theme' ? {
+                    background: `linear-gradient(to right, hsl(var(--theme-primary) / 0.2), hsl(var(--theme-secondary) / 0.2))`,
+                    borderColor: `hsl(var(--theme-primary) / 0.3)`,
+                  } : undefined}
+                >
+                  Theme
+                </Link>
+              </>
             )}
             <SignOutButton />
           </div>
