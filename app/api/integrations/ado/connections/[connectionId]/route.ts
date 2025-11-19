@@ -4,13 +4,13 @@ import { requireRole } from '@/lib/auth';
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { connectionId: string } }
+  { params }: { params: Promise<{ connectionId: string }> }
 ) {
   const routePath = '/api/integrations/ado/connections/[connectionId]';
   try {
     const searchParams = request.nextUrl.searchParams;
     const programId = searchParams.get('programId');
-    const connectionId = params.connectionId;
+    const { connectionId } = await params;
 
     if (!programId) {
       return NextResponse.json(

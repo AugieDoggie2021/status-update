@@ -4,11 +4,11 @@ import { requireRole } from '@/lib/auth';
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { mappingId: string } }
+  { params }: { params: Promise<{ mappingId: string }> }
 ) {
   const routePath = '/api/integrations/ado/mappings/[mappingId]';
   try {
-    const mappingId = params.mappingId;
+    const { mappingId } = await params;
 
     const supabase = getAdminClient();
 
