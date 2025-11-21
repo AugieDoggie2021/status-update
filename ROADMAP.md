@@ -135,6 +135,34 @@ Streamline workflows for quickly removing members from programs or workspaces, i
 
 ---
 
+### 5. OneNote Workstream Sync
+
+**Priority:** Medium  
+**Status:** Proposed
+
+Streamline daily status capture by letting workstream leads jot notes in a shared OneNote notebook that the platform ingests automatically to refresh dashboards.
+
+**Key Capabilities:**
+- Centralized notebook per program with sections that map to workstreams
+- Automatic collection of daily note pages (timestamped, attributed to author)
+- AI- or rule-based parsing of notes into KPIs, risks, and highlights
+- Optional prompts/templates so leads follow a consistent structure
+- Preview queue so owners can review parsed updates before publishing
+
+**Technical Approach:**
+- Microsoft Graph API integration for OneNote access (OAuth with delegated permissions)
+- Background job to pull new pages, normalize content, and trigger parsing
+- Extend the update pipeline to accept “note-derived” entries with provenance metadata
+- Notification or comment back in OneNote when parsing completes (optional)
+- Guardrails for PII handling and per-program consent before enabling
+
+**Open Questions:**
+- Should publishing remain manual approval or fully automatic?
+- How do we handle conflicts between manual dashboard edits and note-derived updates?
+- What is the retention policy for raw note content stored in our system?
+
+---
+
 ## Future Considerations
 
 ### Additional Features Under Consideration
